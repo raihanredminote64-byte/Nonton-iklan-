@@ -36,7 +36,7 @@
             usersList.forEach((usr, idx) => {
                 usersContainer.innerHTML += `
                     <div class="admin-card" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div><b>${usr.username}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${usr.balance.toLocaleString('id-ID')} | VIP: ${usr.subStatus}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${usersList.filter(x => x.referredBy === usr.username).length} total | ${usersList.filter(x => x.referredBy === usr.username && (x.missionCompleted || []).some(Boolean)).length} aktif | Komisi: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + usr.referredBy : ''}</span></div>
+                        <div><b>${usr.username}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${usr.balance.toLocaleString('id-ID')} | VIP: ${usr.subStatus}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${usersList.filter(x => x.referredBy === usr.username).length} total | ${usersList.filter(x => x.referredBy === usr.username && x.subStatus === 'active' && x.subExpiryDate && x.subExpiryDate > Date.now()).length} aktif (VIP) | Bonus: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + usr.referredBy : ''}</span></div>
                         <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock(${idx})">${usr.isBlocked?'Buka':'Blokir'}</button>
                     </div>`;
             });

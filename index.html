@@ -164,7 +164,7 @@
 
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
-            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>5% dari setiap pendapatan misi</b> teman yang mendaftar lewat linkmu (Rp 3 per misi Rp 60). Referral aktif = teman sudah selesaikan minimal 1 misi.</p>
+            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 2.000 per undangan</b> yang membayar untuk membuka kunci (VIP 7 hari). Jika dalam 7 hari tidak diperpanjang, tombol misi terkunci kembali.</p>
             <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu:</label>
             <input type="text" id="ref-link" readonly style="background:#f9fafb;">
             <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link</button>
@@ -212,6 +212,7 @@
                 activeUser = found;
                 if (activeUser.referralEarnings === undefined) activeUser.referralEarnings = 0;
                 if (activeUser.referredBy === undefined) activeUser.referredBy = null;
+                if (activeUser.referralBonusPaid === undefined) activeUser.referralBonusPaid = false;
             } else {
                 const refCode = getReferralCodeFromUrl().trim();
                 const referrerExists = refCode && refCode !== u && usersList.some(x => x.username === refCode);
@@ -219,7 +220,7 @@
                     username: u, password: p, balance: 0, isBlocked: false,
                     subStatus: 'inactive', subExpiryDate: null, paymentProofName: null,
                     paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false),
-                    referredBy: referrerExists ? refCode : null, referralEarnings: 0
+                    referredBy: referrerExists ? refCode : null, referralEarnings: 0, referralBonusPaid: false
                 };
                 usersList.push(activeUser);
                 localStorage.setItem('usersList', JSON.stringify(usersList));
@@ -265,8 +266,15 @@
             const actionArea = document.getElementById('sub-action-area');
             if (activeUser.subStatus === 'active') {
                 const days = Math.max(1, Math.ceil((activeUser.subExpiryDate - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                statusText.innerHTML = `✅ <b>VIP Aktif</b> (Sisa ${days} hari).`;
-                actionArea.innerHTML = `<button class="action-btn" style="background:#d97706; width:auto; padding:8px 16px;" onclick="window.open('${danaPaymentUrl}', '_blank')">Perpanjang (Rp 5.000)</button>`;
+                statusText.innerHTML = `✅ <b>VIP Aktif</b> (Sisa ${days} hari). Jika tidak diperpanjang dalam 7 hari, tombol misi terkunci kembali.`;
+                actionArea.innerHTML = `
+                    <button class="action-btn" style="background:#d97706; width:auto; padding:8px 16px;" onclick="window.open('${danaPaymentUrl}', '_blank')">💰 Bayar Perpanjang via DANA (Rp 5.000)</button>
+                    <div style="background:white; padding:10px; border:1px dashed #d97706; border-radius:8px; margin-top:8px;">
+                        <label style="font-size:12px; font-weight:bold;">Perpanjang: Upload Screenshot Bukti:</label>
+                        <input type="file" id="proof-file" accept="image/*">
+                        <button class="action-btn" onclick="submitProof()">Kirim Bukti & Perpanjang +7 Hari</button>
+                    </div>
+                `;
             } else {
                 statusText.innerHTML = `❌ <b>Akses Terkunci!</b> Top up Rp 5.000 untuk 7 hari.`;
                 actionArea.innerHTML = `
@@ -293,8 +301,15 @@
                     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
                     activeUser.paymentProofName = fileInput.files[0].name;
                     activeUser.paymentProofUrl = canvas.toDataURL('image/jpeg', 0.6);
-                    activeUser.subStatus = 'active';
-                    activeUser.subExpiryDate = new Date().getTime() + (7 * 24 * 60 * 60 * 1000);
+                    const nowMs = new Date().getTime();
+                    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                    if (activeUser.subStatus === 'active' && activeUser.subExpiryDate && activeUser.subExpiryDate > nowMs) {
+                        activeUser.subExpiryDate = activeUser.subExpiryDate + sevenDays;
+                    } else {
+                        activeUser.subStatus = 'active';
+                        activeUser.subExpiryDate = nowMs + sevenDays;
+                    }
+                    payReferralUnlockBonus();
                     saveActiveUser();
                     showInfoPopup("Berhasil!", "VIP Aktif Otomatis!", true);
                     renderUserMissions();
@@ -353,22 +368,26 @@
             if (linkInput) linkInput.value = getReferralLink();
             const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
             const myReferrals = usersList.filter(x => x.referredBy === activeUser.username);
-            const activeReferrals = myReferrals.filter(x => (x.missionCompleted || []).some(Boolean)).length;
+            const activeReferrals = myReferrals.filter(x => isVipActive(x)).length;
             const stats = document.getElementById('ref-stats');
-            if (stats) stats.innerHTML = `Total referral: <b>${myReferrals.length}</b> | Referral aktif: <b>${activeReferrals}</b> | Total komisi referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+            if (stats) stats.innerHTML = `Total referral: <b>${myReferrals.length}</b> | Referral aktif (VIP): <b>${activeReferrals}</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
             const invitedBy = document.getElementById('ref-invited-by');
             if (invitedBy) invitedBy.innerHTML = activeUser.referredBy ? `Diundang oleh: <b>${activeUser.referredBy}</b>` : '';
         }
-        function payReferralCommission(reward) {
+        function isVipActive(u) {
+            return u && u.subStatus === 'active' && u.subExpiryDate && new Date().getTime() < u.subExpiryDate;
+        }
+        function payReferralUnlockBonus() {
             if (!activeUser.referredBy) return;
-            const commission = Math.round(reward * 0.05);
-            if (commission <= 0) return;
+            if (activeUser.referralBonusPaid) return;
+            const BONUS = 2000;
             const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
             const referrer = usersList.find(x => x.username === activeUser.referredBy);
             if (!referrer || referrer.isBlocked) return;
-            referrer.balance = (referrer.balance || 0) + commission;
-            referrer.referralEarnings = (referrer.referralEarnings || 0) + commission;
+            referrer.balance = (referrer.balance || 0) + BONUS;
+            referrer.referralEarnings = (referrer.referralEarnings || 0) + BONUS;
             localStorage.setItem('usersList', JSON.stringify(usersList));
+            activeUser.referralBonusPaid = true;
         }
         let adRunning = false;
         function startMission(index, url) {
@@ -378,7 +397,6 @@
             show_10837371('pop').then(() => {
                 adRunning = false;
                 activeUser.missionCompleted[index] = true; activeUser.balance += 60;
-                payReferralCommission(60);
                 saveActiveUser(); renderUserMissions(); renderReferralBox();
                 showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
             }).catch(() => {
