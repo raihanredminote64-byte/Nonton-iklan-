@@ -137,6 +137,7 @@
         <input type="text" id="input-username" placeholder="Username (contoh: budi123)">
         <input type="password" id="input-password" placeholder="Password akun">
         <button class="action-btn" onclick="handleUserLogin()">Masuk / Mulai Misi</button>
+        <p id="ref-hint" style="display:none; color:#4f46e5; font-size:13px; margin-top:12px;"></p>
     </div>
 
     <div id="main-app" style="display: none; width: 100%; flex-direction: column; align-items: center;">
@@ -160,6 +161,17 @@
         </div>
 
         <div class="container" id="button-container"></div>
+
+        <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
+            <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
+            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>5% dari setiap pendapatan misi</b> teman yang mendaftar lewat linkmu (Rp 3 per misi Rp 60). Referral aktif = teman sudah selesaikan minimal 1 misi.</p>
+            <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu:</label>
+            <input type="text" id="ref-link" readonly style="background:#f9fafb;">
+            <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link</button>
+            <p id="ref-stats" style="font-size: 13px; color: #4b5563; margin: 12px 0 4px 0;"></p>
+            <p id="ref-invited-by" style="font-size: 13px; color: #4b5563; margin: 4px 0;"></p>
+            <p id="ref-copy-status" style="font-size: 13px; font-weight: bold; margin-top: 8px;"></p>
+        </div>
         
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">💸 Tarik Saldo (Withdraw)</h3>
@@ -185,6 +197,9 @@
         let activeUser = JSON.parse(localStorage.getItem('currentUser')) || null;
         const danaPaymentUrl = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026101995063273";
 
+        function getReferralCodeFromUrl() {
+            try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch (e) { return ''; }
+        }
         function handleUserLogin() {
             const u = document.getElementById('input-username').value.trim();
             const p = document.getElementById('input-password').value.trim();
@@ -195,11 +210,16 @@
                 if (found.password !== p) { alert("Password salah!"); return; }
                 if (found.isBlocked) { alert("Akun diblokir."); return; }
                 activeUser = found;
+                if (activeUser.referralEarnings === undefined) activeUser.referralEarnings = 0;
+                if (activeUser.referredBy === undefined) activeUser.referredBy = null;
             } else {
+                const refCode = getReferralCodeFromUrl().trim();
+                const referrerExists = refCode && refCode !== u && usersList.some(x => x.username === refCode);
                 activeUser = {
                     username: u, password: p, balance: 0, isBlocked: false,
                     subStatus: 'inactive', subExpiryDate: null, paymentProofName: null,
-                    paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false)
+                    paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false),
+                    referredBy: referrerExists ? refCode : null, referralEarnings: 0
                 };
                 usersList.push(activeUser);
                 localStorage.setItem('usersList', JSON.stringify(usersList));
@@ -302,8 +322,54 @@
                 else { btn.innerText = "Mulai Misi"; btn.onclick = () => startMission(i, missionLinks[i]); }
                 card.appendChild(btn); container.appendChild(card);
             }
+            renderReferralBox();
         }
 
+        function getReferralLink() {
+            let base;
+            try {
+                if (window.location.protocol && window.location.protocol.indexOf('http') === 0) {
+                    base = window.location.origin + window.location.pathname;
+                } else {
+                    base = 'https://nontoniklan.vercel.app/';
+                }
+            } catch (e) { base = 'https://nontoniklan.vercel.app/'; }
+            return base + '?ref=' + encodeURIComponent(activeUser.username);
+        }
+        function copyReferralLink() {
+            const link = getReferralLink();
+            const status = document.getElementById('ref-copy-status');
+            const done = () => { status.style.color = '#10b981'; status.innerText = 'Link referral tersalin!'; };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link).then(done).catch(() => {
+                    const input = document.getElementById('ref-link'); input.select(); document.execCommand('copy'); done();
+                });
+            } else {
+                const input = document.getElementById('ref-link'); input.select(); document.execCommand('copy'); done();
+            }
+        }
+        function renderReferralBox() {
+            const linkInput = document.getElementById('ref-link');
+            if (linkInput) linkInput.value = getReferralLink();
+            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            const myReferrals = usersList.filter(x => x.referredBy === activeUser.username);
+            const activeReferrals = myReferrals.filter(x => (x.missionCompleted || []).some(Boolean)).length;
+            const stats = document.getElementById('ref-stats');
+            if (stats) stats.innerHTML = `Total referral: <b>${myReferrals.length}</b> | Referral aktif: <b>${activeReferrals}</b> | Total komisi referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+            const invitedBy = document.getElementById('ref-invited-by');
+            if (invitedBy) invitedBy.innerHTML = activeUser.referredBy ? `Diundang oleh: <b>${activeUser.referredBy}</b>` : '';
+        }
+        function payReferralCommission(reward) {
+            if (!activeUser.referredBy) return;
+            const commission = Math.round(reward * 0.05);
+            if (commission <= 0) return;
+            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            const referrer = usersList.find(x => x.username === activeUser.referredBy);
+            if (!referrer || referrer.isBlocked) return;
+            referrer.balance = (referrer.balance || 0) + commission;
+            referrer.referralEarnings = (referrer.referralEarnings || 0) + commission;
+            localStorage.setItem('usersList', JSON.stringify(usersList));
+        }
         let adRunning = false;
         function startMission(index, url) {
             if (adRunning) { showInfoPopup("Iklan Berjalan", "Tunggu iklan yang sedang berjalan selesai dulu.", false); return; }
@@ -312,7 +378,8 @@
             show_10837371('pop').then(() => {
                 adRunning = false;
                 activeUser.missionCompleted[index] = true; activeUser.balance += 60;
-                saveActiveUser(); renderUserMissions();
+                payReferralCommission(60);
+                saveActiveUser(); renderUserMissions(); renderReferralBox();
                 showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
             }).catch(() => {
                 adRunning = false;
@@ -337,6 +404,17 @@
             renderUserMissions();
         }
 
+        (function showRefHint() {
+            const refCode = getReferralCodeFromUrl();
+            if (!refCode) return;
+            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            const hint = document.getElementById('ref-hint');
+            if (!hint) return;
+            if (usersList.some(x => x.username === refCode)) {
+                hint.style.display = 'block';
+                hint.innerText = 'Kamu diundang oleh: ' + refCode + '. Daftar akun baru untuk mengaktifkan referral.';
+            }
+        })();
         if (activeUser) loadAppUI();
     </script>
 </body>
