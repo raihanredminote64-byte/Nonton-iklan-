@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halaman Admin - Kontrol Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header, .admin-view {
+            width: 100%;
+            max-width: 950px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .admin-section-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .admin-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 10px;
+        }
+        .action-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h3 style="margin:0;">🛠️ Panel Admin</h3>
+            <span style="font-size: 12px; color: #10b981; font-weight: bold;">● Super Admin Mode</span>
+        </div>
+        <div>
+            <a href="../index.html" style="background: #10b981; color: white; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px;">👤 Ke Halaman User / Login</a>
+        </div>
+    </header>
+
+    <div class="admin-view">
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0;">👥 Daftar Akun Pengguna</h3>
+            <div id="admin-users-container"></div>
+        </div>
+
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0;">💳 Bukti Pembayaran Subskripsi Masuk</h3>
+            <div id="admin-sub-container"></div>
+        </div>
+
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0;">💸 Permintaan Withdraw User</h3>
+            <div id="admin-wd-container"></div>
+        </div>
+
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0;">🔗 Kontrol Link 10 Tombol Misi</h3>
+            <div id="admin-links-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const totalButtons = 10;
+        let missionLinks = JSON.parse(localStorage.getItem('missionLinks')) || Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+
+        function renderAdmin() {
+            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            const usersContainer = document.getElementById('admin-users-container');
+            
+            if (usersList.length === 0) {
+                usersContainer.innerHTML = `<p style="color:#666; font-size:13px; margin:0;">Belum ada akun yang terdaftar.</p>`;
+            } else {
+                usersContainer.innerHTML = "";
+                usersList.forEach((usr, index) => {
+                    usersContainer.innerHTML += `
+                        <div class="admin-card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <strong>Username: ${usr.username}</strong><br>
+                                <span style="font-size:13px; color:${usr.isBlocked ? '#ef4444' : '#10b981'}; font-weight:bold;">
+                                    ${usr.isBlocked ? 'Status: DIBLOKIR' : 'Status: Aktif'} | Saldo: Rp ${usr.balance.toLocaleString('id-ID')} | VIP: ${usr.subStatus.toUpperCase()}
+                                </span>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="action-btn" style="background:${usr.isBlocked ? '#10b981' : '#ef4444'};" onclick="toggleBlock(${index})">
+                                    ${usr.isBlocked ? 'Buka Blokir' : 'Blokir'}
+                                </button>
+                                <button class="action-btn" style="background:#f59e0b;" onclick="resetUserMission(${index})">Reset Misi</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const subContainer = document.getElementById('admin-sub-container');
+            let activeSubs = usersList.filter(u => u.paymentProofUrl);
+            if (activeSubs.length === 0) {
+                subContainer.innerHTML = `<p style="color:#666; font-size:13px; margin:0;">Belum ada bukti pembayaran yang diunggah.</p>`;
+            } else {
+                subContainer.innerHTML = "";
+                activeSubs.forEach(usr => {
+                    subContainer.innerHTML += `
+                        <div class="admin-card">
+                            <p style="margin:4px 0;"><b>User:</b> ${usr.username}</p>
+                            <p style="margin:4px 0; font-size:13px;"><b>File:</b> ${usr.paymentProofName}</p>
+                            <img src="${usr.paymentProofUrl}" style="max-width:200px; border-radius:8px; border:1px solid #ccc; margin:10px 0; display:block;">
+                            <a href="${usr.paymentProofUrl}" download="${usr.paymentProofName}" class="action-btn" style="text-decoration:none; display:inline-block; background:#10b981;">📥 Download Bukti</a>
+                        </div>
+                    `;
+                });
+            }
+
+            let allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
+            const wdContainer = document.getElementById('admin-wd-container');
+            if (allWd.length === 0) {
+                wdContainer.innerHTML = `<p style="color:#666; font-size:13px; margin:0;">Belum ada permintaan withdraw.</p>`;
+            } else {
+                wdContainer.innerHTML = "";
+                allWd.forEach((wd, idx) => {
+                    wdContainer.innerHTML += `
+                        <div class="admin-card">
+                            <p style="margin:4px 0;"><b>User:</b> ${wd.username}</p>
+                            <p style="margin:4px 0;"><b>Nominal:</b> Rp ${wd.amount.toLocaleString('id-ID')}</p>
+                            <p style="margin:4px 0;"><b>Tujuan:</b> ${wd.account}</p>
+                            <p style="margin:4px 0;"><b>Status:</b> <b style="color:#f59e0b;">${wd.status}</b></p>
+                            ${wd.status === 'Pending' ? `
+                                <div style="display:flex; gap:10px; margin-top:10px;">
+                                    <button class="action-btn" style="background:#10b981;" onclick="processWD(${idx}, 'Disetujui')">Setujui</button>
+                                    <button class="action-btn" style="background:#ef4444;" onclick="processWD(${idx}, 'Ditolak')">Tolak</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            const linksContainer = document.getElementById('admin-links-container');
+            linksContainer.innerHTML = "";
+            for (let i = 0; i < totalButtons; i++) {
+                linksContainer.innerHTML += `
+                    <div class="admin-card">
+                        <label style="font-weight:bold; font-size:13px;">Link Tombol Misi #${i + 1}:</label>
+                        <input type="text" id="link-${i}" value="${missionLinks[i]}">
+                        <button class="action-btn" onclick="saveLink(${i})">Simpan Link #${i + 1}</button>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleBlock(index) {
+            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            if (usersList[index]) {
+                usersList[index].isBlocked = !usersList[index].isBlocked;
+                localStorage.setItem('usersList', JSON.stringify(usersList));
+                let activeUser = JSON.parse(localStorage.getItem('currentUser'));
+                if (activeUser && activeUser.username === usersList[index].username) {
+                    activeUser.isBlocked = usersList[index].isBlocked;
+                    localStorage.setItem('currentUser', JSON.stringify(activeUser));
+                }
+                alert("Status akun berhasil diperbarui!");
+                renderAdmin();
+            }
+        }
+
+        function resetUserMission(index) {
+            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+            if (usersList[index]) {
+                usersList[index].missionCompleted = Array(totalButtons).fill(false);
+                localStorage.setItem('usersList', JSON.stringify(usersList));
+                alert("Misi user berhasil di-reset!");
+                renderAdmin();
+            }
+        }
+
+        function saveLink(index) {
+            const val = document.getElementById(`link-${index}`).value.trim();
+            missionLinks[index] = val;
+            localStorage.setItem('missionLinks', JSON.stringify(missionLinks));
+            alert(`Link nomor #${index + 1} berhasil disimpan!`);
+        }
+
+        function processWD(idx, status) {
+            let allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
+            if (!allWd[idx]) return;
+            allWd[idx].status = status;
+            
+            if (status === 'Ditolak') {
+                let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
+                let usr = usersList.find(x => x.username === allWd[idx].username);
+                if (usr) {
+                    usr.balance += allWd[idx].amount;
+                    localStorage.setItem('usersList', JSON.stringify(usersList));
+                }
+            }
+            localStorage.setItem('allWithdraws', JSON.stringify(allWd));
+            alert(`Withdraw ${status}!`);
+            renderAdmin();
+        }
+
+        renderAdmin();
+    </script>
+</body>
+</html>
