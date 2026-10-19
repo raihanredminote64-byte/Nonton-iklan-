@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halaman Admin - Kontrol Dashboard</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            width: 100%;
+            max-width: 950px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 18px 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+            box-sizing: border-box;
+        }
+        .admin-view {
+            width: 100%;
+            max-width: 950px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+        .admin-section-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .admin-card {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 12px;
+        }
+        .action-btn {
+            background: var(--bg-gradient);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 15px 0;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h3 style="margin:0; font-size: 18px; color: #111827;">🛠️ Administrator Control Panel</h3>
+            <span style="font-size: 13px; color: var(--success); font-weight: 700;">● Super Admin Mode</span>
+        </div>
+        <div>
+            <a href="user.html" style="background: #10b981; color: white; padding: 10px 16px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px;">👤 Pindah ke Halaman User</a>
+        </div>
+    </header>
+
+    <div class="admin-view">
+        <h2 style="border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-top: 0; color: #111827;">
+            🛠️ Admin Control Dashboard
+        </h2>
+        <p style="color: var(--text-muted); margin-bottom: 25px;">Pusat kontrol penuh untuk mengelola akun pengguna, bukti pembayaran subskripsi, tautan misi, dan pencairan saldo.</p>
+        
+        <!-- Manajemen Akun -->
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">👥 Manajemen Akun Pengguna</h3>
+            <div id="admin-users-container"></div>
+        </div>
+
+        <!-- Bukti Pembayaran -->
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">💳 Riwayat Bukti Pembayaran Subskripsi</h3>
+            <div id="admin-sub-container">
+                <p style="color: var(--text-muted);">Belum ada bukti pembayaran yang diunggah.</p>
+            </div>
+        </div>
+
+        <!-- Kontrol Link Misi -->
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">🔗 Kontrol Link Tombol Misi (1 - 10)</h3>
+            <div id="admin-links-container"></div>
+        </div>
+
+        <!-- Kontrol Withdraw -->
+        <div class="admin-section-box">
+            <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">💸 Kontrol Permintaan Withdraw Pengguna</h3>
+            <div id="admin-wd-container">
+                <p style="color: var(--text-muted);">Belum ada permintaan withdraw.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const totalButtons = 10;
+        let missionLinks = JSON.parse(localStorage.getItem('missionLinks')) || Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+        
+        function renderAdminDashboard() {
+            // User status
+            const userBalance = parseInt(localStorage.getItem('userBalance')) || 0;
+            const isBlocked = JSON.parse(localStorage.getItem('isBlocked')) || false;
+            
+            const usersContainer = document.getElementById('admin-users-container');
+            usersContainer.innerHTML = `
+                <div class="admin-card" style="display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="font-size: 15px;">Budi (Pengguna_01)</strong><br>
+                        <span style="font-size: 13px; color: ${isBlocked ? '#ef4444' : '#10b981'}; font-weight: 700;">
+                            ${isBlocked ? '● Status: Diblokir' : '● Status: Aktif'} | Saldo: Rp ${userBalance.toLocaleString()}
+                        </span>
+                    </div>
+                    <button class="action-btn" style="background: ${isBlocked ? '#10b981' : '#ef4444'};" onclick="toggleBlockUser()">
+                        ${isBlocked ? 'Buka Blokir' : 'Blokir Akun'}
+                    </button>
+                </div>
+            `;
+
+            // Subscriptions
+            const subContainer = document.getElementById('admin-sub-container');
+            const proofName = localStorage.getItem('paymentProofName');
+            const proofUrl = localStorage.getItem('paymentProofUrl');
+            const subStatus = localStorage.getItem('subStatus');
+            const subExpiryDate = parseInt(localStorage.getItem('subExpiryDate')) || null;
+
+            if (!proofUrl) {
+                subContainer.innerHTML = `<p style="color: var(--text-muted); font-style: italic; margin: 0;">Belum ada riwayat unggahan bukti pembayaran.</p>`;
+            } else {
+                const expiryString = subExpiryDate ? new Date(subExpiryDate).toLocaleString() : '-';
+                subContainer.innerHTML = `
+                    <div class="admin-card">
+                        <p style="margin: 4px 0;"><b>User:</b> Budi (Pengguna_01) - <span style="color: #10b981; font-weight: bold;">VIP Aktif (Auto-Validated)</span></p>
+                        <p style="margin: 4px 0;"><b>File Bukti:</b> ${proofName || 'bukti.png'}</p>
+                        <p style="margin: 4px 0; font-size: 13px; color: var(--text-muted);">Aktif sampai: ${expiryString}</p>
+                        <div style="margin: 10px 0;">
+                            <img src="${proofUrl}" alt="Bukti Pembayaran" style="max-width: 200px; border-radius: 8px; border: 1px solid #ccc; display: block; margin-bottom: 8px;">
+                            <a href="${proofUrl}" download="${proofName || 'bukti_transfer.png'}" style="display: inline-block; background: #4f46e5; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">📥 Download Bukti Pembayaran</a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Links Control
+            const linksContainer = document.getElementById('admin-links-container');
+            linksContainer.innerHTML = "";
+            for (let i = 0; i < totalButtons; i++) {
+                linksContainer.innerHTML += `
+                    <div class="admin-card">
+                        <label style="font-weight: 600; font-size: 14px;">Tombol Misi #${i + 1} URL:</label>
+                        <input type="text" id="admin-link-${i}" value="${missionLinks[i]}">
+                        <button class="action-btn" style="padding: 10px;" onclick="updateLink(${i})">Simpan Perubahan Link</button>
+                    </div>
+                `;
+            }
+
+            // Withdraw Control
+            const wdContainer = document.getElementById('admin-wd-container');
+            const wdReq = JSON.parse(localStorage.getItem('withdrawRequest'));
+            if (!wdReq) {
+                wdContainer.innerHTML = `<p style="color: var(--text-muted); font-style: italic; margin: 0;">Belum ada permintaan penarikan saldo.</p>`;
+            } else {
+                wdContainer.innerHTML = `
+                    <div class="admin-card">
+                        <p style="margin: 4px 0;"><b>User:</b> ${wdReq.username}</p>
+                        <p style="margin: 4px 0;"><b>Jumlah:</b> Rp ${wdReq.amount.toLocaleString()}</p>
+                        <p style="margin: 4px 0;"><b>Tujuan:</b> ${wdReq.account}</p>
+                        <p style="margin: 4px 0;"><b>Status:</b> <span style="color: #f59e0b; font-weight: 700;">${wdReq.status}</span></p>
+                        ${wdReq.status === 'Pending' ? `
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button class="action-btn" style="background: #10b981; margin:0;" onclick="processWD('Disetujui')">Setujui</button>
+                                <button class="action-btn" style="background: #ef4444; margin:0;" onclick="processWD('Ditolak')">Tolak</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        function toggleBlockUser() {
+            let isBlocked = JSON.parse(localStorage.getItem('isBlocked')) || false;
+            isBlocked = !isBlocked;
+            localStorage.setItem('isBlocked', JSON.stringify(isBlocked));
+            alert("Status blokir akun berhasil diubah.");
+            renderAdminDashboard();
+        }
+
+        function updateLink(index) {
+            const val = document.getElementById(`admin-link-${index}`).value;
+            missionLinks[index] = val;
+            localStorage.setItem('missionLinks', JSON.stringify(missionLinks));
+            alert(`Link Tombol Misi #${index + 1} berhasil diperbarui.`);
+        }
+
+        function processWD(status) {
+            let wdReq = JSON.parse(localStorage.getItem('withdrawRequest'));
+            if (!wdReq) return;
+            wdReq.status = status;
+            if (status === 'Ditolak') {
+                let userBalance = parseInt(localStorage.getItem('userBalance')) || 0;
+                userBalance += wdReq.amount;
+                localStorage.setItem('userBalance', userBalance);
+            }
+            localStorage.setItem('withdrawRequest', JSON.stringify(wdReq));
+            alert(`Penarikan telah ${status.toLowerCase()}`);
+            renderAdminDashboard();
+        }
+
+        renderAdminDashboard();
+    </script>
+</body>
+</html>
