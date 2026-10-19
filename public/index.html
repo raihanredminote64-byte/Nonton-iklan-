@@ -194,52 +194,116 @@
 
     <script>
         const totalButtons = 10;
-        let activeUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        let activeUser = null;
+        let missionLinksCache = null;
         const danaPaymentUrl = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026101995063273";
+
+        function getToken() { try { return localStorage.getItem('nonton_token') || ''; } catch (e) { return ''; } }
+        function setSession(token, username) {
+            try {
+                if (token) localStorage.setItem('nonton_token', token);
+                if (username) localStorage.setItem('nonton_username', username);
+            } catch (e) {}
+        }
+        function clearSession() {
+            try { localStorage.removeItem('nonton_token'); localStorage.removeItem('nonton_username'); } catch (e) {}
+        }
+
+        async function api(path, method, body) {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(path, {
+                method: method || 'GET',
+                headers,
+                body: body ? JSON.stringify(body) : undefined,
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { data = {}; }
+            if (!res.ok) {
+                const err = new Error(data.error || ('Request gagal (' + res.status + ')'));
+                err.status = res.status;
+                err.data = data;
+                throw err;
+            }
+            return data;
+        }
 
         function getReferralCodeFromUrl() {
             try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch (e) { return ''; }
         }
-        function handleUserLogin() {
+
+        function getLegacyUser(username, password) {
+            try {
+                const list = JSON.parse(localStorage.getItem('usersList')) || [];
+                const found = list.find(x => x && typeof x.username === 'string' && x.username.trim().toLowerCase() === username.trim().toLowerCase());
+                if (!found || found.password !== password) return null;
+                let legacyWithdraws = [];
+                try {
+                    const allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
+                    legacyWithdraws = allWd.filter(w => w && w.username === found.username).map((w, i) => ({
+                        id: 'legacy-' + Date.now() + '-' + i,
+                        amount: w.amount,
+                        account: w.account || '',
+                        status: w.status || 'Pending',
+                        createdAt: Date.now(),
+                    }));
+                } catch (e) {}
+                return {
+                    balance: found.balance || 0,
+                    isBlocked: !!found.isBlocked,
+                    subStatus: found.subStatus || 'inactive',
+                    subExpiryDate: found.subExpiryDate || null,
+                    paymentProofName: found.paymentProofName || null,
+                    paymentProofUrl: found.paymentProofUrl || null,
+                    missionCompleted: found.missionCompleted || Array(totalButtons).fill(false),
+                    missionCooldownUntil: found.missionCooldownUntil || Array(totalButtons).fill(0),
+                    referredBy: found.referredBy || null,
+                    referralEarnings: found.referralEarnings || 0,
+                    referralBonusPaid: !!found.referralBonusPaid,
+                    withdrawRequests: legacyWithdraws,
+                };
+            } catch (e) { return null; }
+        }
+
+        async function handleUserLogin() {
             const u = document.getElementById('input-username').value.trim();
             const p = document.getElementById('input-password').value.trim();
             if (!u || !p) { alert("Username & password wajib diisi!"); return; }
-            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
-            let found = usersList.find(x => x.username === u);
-            if (found) {
-                if (found.password !== p) { alert("Password salah!"); return; }
-                if (found.isBlocked) { alert("Akun diblokir."); return; }
-                activeUser = found;
-                if (activeUser.referralEarnings === undefined) activeUser.referralEarnings = 0;
-                if (activeUser.referredBy === undefined) activeUser.referredBy = null;
-                if (activeUser.referralBonusPaid === undefined) activeUser.referralBonusPaid = false;
-                if (!Array.isArray(activeUser.missionCooldownUntil)) activeUser.missionCooldownUntil = Array(totalButtons).fill(0);
-            } else {
-                const refCode = getReferralCodeFromUrl().trim();
-                const referrerExists = refCode && refCode !== u && usersList.some(x => x.username === refCode);
-                activeUser = {
-                    username: u, password: p, balance: 0, isBlocked: false,
-                    subStatus: 'inactive', subExpiryDate: null, paymentProofName: null,
-                    paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false), missionCooldownUntil: Array(totalButtons).fill(0),
-                    referredBy: referrerExists ? refCode : null, referralEarnings: 0, referralBonusPaid: false
-                };
-                usersList.push(activeUser);
-                localStorage.setItem('usersList', JSON.stringify(usersList));
+            try {
+                const data = await api('/api/auth/login', 'POST', { username: u, password: p });
+                setSession(data.token, data.user.username);
+                activeUser = data.user;
+                loadAppUI();
+            } catch (e) {
+                if (e.status === 404) {
+                    // User belum ada di server: coba migrasi dari LocalStorage lama, lalu daftar baru.
+                    const legacy = getLegacyUser(u, p);
+                    try {
+                        if (legacy) {
+                            const m = await api('/api/migrate', 'POST', { username: u, password: p, legacy });
+                            setSession(m.token, m.user.username);
+                            activeUser = m.user;
+                            loadAppUI();
+                            return;
+                        }
+                        const refCode = getReferralCodeFromUrl().trim();
+                        const r = await api('/api/auth/register', 'POST', { username: u, password: p, refCode });
+                        setSession(r.token, r.user.username);
+                        activeUser = r.user;
+                        loadAppUI();
+                    } catch (e2) {
+                        alert(e2.message || 'Gagal masuk / daftar.');
+                    }
+                } else {
+                    alert(e.message || 'Gagal masuk.');
+                }
             }
-            localStorage.setItem('currentUser', JSON.stringify(activeUser));
-            loadAppUI();
         }
 
         function handleLogout() {
-            localStorage.removeItem('currentUser');
+            clearSession();
             location.reload();
-        }
-
-        function saveActiveUser() {
-            localStorage.setItem('currentUser', JSON.stringify(activeUser));
-            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
-            let idx = usersList.findIndex(x => x.username === activeUser.username);
-            if (idx !== -1) { usersList[idx] = activeUser; localStorage.setItem('usersList', JSON.stringify(usersList)); }
         }
 
         function loadAppUI() {
@@ -260,8 +324,9 @@
         function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
 
         function renderSubscriptionBox() {
+            // Tampilan saja: jika expiry lewat, tampilkan terkunci (status resmi dicek server di /api/me & /api/mission).
             if (activeUser.subStatus === 'active' && activeUser.subExpiryDate && new Date().getTime() > activeUser.subExpiryDate) {
-                activeUser.subStatus = 'inactive'; activeUser.subExpiryDate = null; saveActiveUser();
+                activeUser.subStatus = 'inactive'; activeUser.subExpiryDate = null;
             }
             const statusText = document.getElementById('sub-status-text');
             const actionArea = document.getElementById('sub-action-area');
@@ -289,31 +354,26 @@
             }
         }
 
-        function submitProof() {
+        async function submitProof() {
             const fileInput = document.getElementById('proof-file');
             if (!fileInput.files || fileInput.files.length === 0) { alert("Pilih file bukti!"); return; }
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const scale = 400 / img.width;
-                    canvas.width = 400; canvas.height = img.height * scale;
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    activeUser.paymentProofName = fileInput.files[0].name;
-                    activeUser.paymentProofUrl = canvas.toDataURL('image/jpeg', 0.6);
-                    const nowMs = new Date().getTime();
-                    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-                    if (activeUser.subStatus === 'active' && activeUser.subExpiryDate && activeUser.subExpiryDate > nowMs) {
-                        activeUser.subExpiryDate = activeUser.subExpiryDate + sevenDays;
-                    } else {
-                        activeUser.subStatus = 'active';
-                        activeUser.subExpiryDate = nowMs + sevenDays;
+                img.onload = async function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const scale = 400 / img.width;
+                        canvas.width = 400; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const proofUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        const data = await api('/api/vip/activate', 'POST', { proofName: fileInput.files[0].name, proofUrl });
+                        activeUser = data.user;
+                        showInfoPopup("Berhasil!", "VIP Aktif Otomatis!", true);
+                        renderUserMissions();
+                    } catch (err) {
+                        showInfoPopup("Gagal", err.message || 'Gagal mengaktifkan VIP.', false);
                     }
-                    payReferralUnlockBonus();
-                    saveActiveUser();
-                    showInfoPopup("Berhasil!", "VIP Aktif Otomatis!", true);
-                    renderUserMissions();
                 };
                 img.src = e.target.result;
             };
@@ -350,10 +410,23 @@
                 }
             }, 500);
         }
-        function renderUserMissions() {
+
+        async function fetchMissionLinks() {
+            if (missionLinksCache) return missionLinksCache;
+            try {
+                const data = await api('/api/admin/links', 'GET');
+                if (Array.isArray(data.links) && data.links.length === totalButtons) {
+                    missionLinksCache = data.links;
+                }
+            } catch (e) {}
+            if (!missionLinksCache) missionLinksCache = Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+            return missionLinksCache;
+        }
+
+        async function renderUserMissions() {
             renderSubscriptionBox();
-            document.getElementById('balance').innerText = activeUser.balance.toLocaleString('id-ID');
-            let missionLinks = JSON.parse(localStorage.getItem('missionLinks')) || Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+            document.getElementById('balance').innerText = (activeUser.balance || 0).toLocaleString('id-ID');
+            const missionLinks = await fetchMissionLinks();
             const container = document.getElementById('button-container');
             container.innerHTML = "";
             const now = Date.now();
@@ -398,79 +471,80 @@
                 const input = document.getElementById('ref-link'); input.select(); document.execCommand('copy'); done();
             }
         }
-        function renderReferralBox() {
+        async function renderReferralBox() {
             const linkInput = document.getElementById('ref-link');
             if (linkInput) linkInput.value = getReferralLink();
-            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
-            const myReferrals = usersList.filter(x => x.referredBy === activeUser.username);
-            const activeReferrals = myReferrals.filter(x => isVipActive(x)).length;
             const stats = document.getElementById('ref-stats');
-            if (stats) stats.innerHTML = `Total referral: <b>${myReferrals.length}</b> | Referral aktif (VIP): <b>${activeReferrals}</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+            try {
+                const s = await api('/api/referral/stats', 'GET');
+                if (stats) stats.innerHTML = `Total referral: <b>${s.total}</b> | Referral aktif (VIP): <b>${s.activeVIP}</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+            } catch (e) {
+                if (stats) stats.innerHTML = `Total referral: <b>-</b> | Referral aktif (VIP): <b>-</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+            }
             const invitedBy = document.getElementById('ref-invited-by');
             if (invitedBy) invitedBy.innerHTML = activeUser.referredBy ? `Diundang oleh: <b>${activeUser.referredBy}</b>` : '';
         }
-        function isVipActive(u) {
-            return u && u.subStatus === 'active' && u.subExpiryDate && new Date().getTime() < u.subExpiryDate;
-        }
-        function payReferralUnlockBonus() {
-            if (!activeUser.referredBy) return;
-            if (activeUser.referralBonusPaid) return;
-            const BONUS = 2000;
-            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
-            const referrer = usersList.find(x => x.username === activeUser.referredBy);
-            if (!referrer || referrer.isBlocked) return;
-            referrer.balance = (referrer.balance || 0) + BONUS;
-            referrer.referralEarnings = (referrer.referralEarnings || 0) + BONUS;
-            localStorage.setItem('usersList', JSON.stringify(usersList));
-            activeUser.referralBonusPaid = true;
-        }
+
         let adRunning = false;
         function startMission(index, url) {
             if (adRunning) { showInfoPopup("Iklan Berjalan", "Tunggu iklan yang sedang berjalan selesai dulu.", false); return; }
             if (typeof show_10837371 !== 'function') { showInfoPopup("Gagal", "Iklan belum siap. Coba lagi sebentar lagi.", false); return; }
             adRunning = true;
-            show_10837371('pop').then(() => {
+            show_10837371('pop').then(async () => {
                 adRunning = false;
-                if (!Array.isArray(activeUser.missionCooldownUntil)) activeUser.missionCooldownUntil = Array(totalButtons).fill(0);
-                activeUser.missionCompleted[index] = true; activeUser.balance += 60;
-                activeUser.missionCooldownUntil[index] = Date.now() + 30000;
-                saveActiveUser(); renderUserMissions(); renderReferralBox();
-                showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
+                try {
+                    const data = await api('/api/mission/complete', 'POST', { missionIndex: index });
+                    activeUser = data.user;
+                    renderUserMissions(); renderReferralBox();
+                    showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
+                } catch (err) {
+                    showInfoPopup("Gagal", err.message || 'Gagal mencatat misi.', false);
+                }
             }).catch(() => {
                 adRunning = false;
                 showInfoPopup("Gagal", "Iklan gagal dimuat atau terjadi error. Coba lagi.", false);
             });
         }
 
-        function requestWithdraw() {
+        async function requestWithdraw() {
             if (activeUser.isBlocked) return;
             const amount = parseInt(document.getElementById('wd-amount').value);
             const account = document.getElementById('wd-account').value.trim();
             const stat = document.getElementById('wd-status');
-            if (!amount || amount < 100000 || amount > activeUser.balance || !account) {
+            if (!amount || amount < 100000 || amount > (activeUser.balance || 0) || !account) {
                 stat.style.color = '#ef4444'; stat.innerText = "Minimal 100rb & saldo cukup!"; return;
             }
-            activeUser.balance -= amount; saveActiveUser();
-            let allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
-            allWd.push({ username: activeUser.username, amount: amount, account: account, status: "Pending" });
-            localStorage.setItem('allWithdraws', JSON.stringify(allWd));
-            stat.style.color = '#10b981'; stat.innerText = "Withdraw diajukan!";
-            document.getElementById('wd-amount').value = ""; document.getElementById('wd-account').value = "";
-            renderUserMissions();
+            try {
+                const data = await api('/api/withdraw/request', 'POST', { amount, account });
+                activeUser = data.user;
+                stat.style.color = '#10b981'; stat.innerText = "Withdraw diajukan!";
+                document.getElementById('wd-amount').value = ""; document.getElementById('wd-account').value = "";
+                renderUserMissions();
+            } catch (err) {
+                stat.style.color = '#ef4444'; stat.innerText = err.message || 'Gagal mengajukan withdraw.';
+            }
         }
 
         (function showRefHint() {
             const refCode = getReferralCodeFromUrl();
             if (!refCode) return;
-            const usersList = JSON.parse(localStorage.getItem('usersList')) || [];
             const hint = document.getElementById('ref-hint');
             if (!hint) return;
-            if (usersList.some(x => x.username === refCode)) {
-                hint.style.display = 'block';
-                hint.innerText = 'Kamu diundang oleh: ' + refCode + '. Daftar akun baru untuk mengaktifkan referral.';
+            hint.style.display = 'block';
+            hint.innerText = 'Kamu diundang oleh: ' + refCode + '. Daftar akun baru untuk mengaktifkan referral.';
+        })();
+
+        (async function initSession() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const data = await api('/api/me', 'GET');
+                activeUser = data.user;
+                loadAppUI();
+            } catch (e) {
+                clearSession();
             }
         })();
-        if (activeUser) loadAppUI();
-    </script>
+</script>
 </body>
 </html>

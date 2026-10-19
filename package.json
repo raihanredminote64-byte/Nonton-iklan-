@@ -1,0 +1,11 @@
+{
+  "name": "nonton-iklan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nonton Iklan - user, misi, VIP, referral, withdraw. Backend Vercel serverless + Vercel Blob.",
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@vercel/blob": "^1.0.0"
+  }
+}

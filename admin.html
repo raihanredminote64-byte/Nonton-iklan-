@@ -15,9 +15,24 @@
     </style>
 </head>
 <body>
+    <div id="admin-auth" class="admin-view" style="max-width:420px; margin-top:40px;">
+        <h3 style="margin-top:0;">🔐 Login Admin</h3>
+        <p style="font-size:13px; color:#6b7280;">Masuk dengan akun apa pun yang terdaftar untuk membuka dashboard admin.</p>
+        <label style="font-size:13px; font-weight:600;">Username</label>
+        <input type="text" id="admin-username" placeholder="Username">
+        <label style="font-size:13px; font-weight:600;">Password</label>
+        <input type="password" id="admin-password" placeholder="Password" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;">
+        <button class="action-btn" onclick="handleAdminLogin()">Masuk</button>
+        <p id="admin-auth-status" style="font-size:13px; font-weight:bold;"></p>
+    </div>
+
+    <div id="admin-main" style="display:none; width:100%; flex-direction:column; align-items:center;">
     <header>
         <div><h3>🛠️ Panel Admin</h3><span style="font-size:12px; color:#10b981; font-weight:bold;">● Super Admin</span></div>
-        <div><a href="../index.html" style="background:#10b981; color:white; padding:8px 14px; border-radius:8px; text-decoration:none; font-size:13px;">👤 Ke User</a></div>
+        <div>
+            <a href="../index.html" style="background:#10b981; color:white; padding:8px 14px; border-radius:8px; text-decoration:none; font-size:13px;">👤 Ke User</a>
+            <button onclick="handleAdminLogout()" style="background:#ef4444; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:600; cursor:pointer; font-size:12px; margin-left:8px;">Keluar</button>
+        </div>
     </header>
     <div class="admin-view">
         <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div id="admin-users-container"></div></div>
@@ -25,19 +40,86 @@
         <div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
     </div>
+    </div>
     <script>
         const totalButtons = 10;
-        let missionLinks = JSON.parse(localStorage.getItem('missionLinks')) || Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+        let usersList = [];
+        let missionLinks = Array(totalButtons).fill("https://sfl.gl/gMmpBje");
+
+        function getToken() { try { return localStorage.getItem('nonton_token') || ''; } catch (e) { return ''; } }
+        function setSession(token, username) {
+            try {
+                if (token) localStorage.setItem('nonton_token', token);
+                if (username) localStorage.setItem('nonton_username', username);
+            } catch (e) {}
+        }
+        function clearSession() {
+            try { localStorage.removeItem('nonton_token'); localStorage.removeItem('nonton_username'); } catch (e) {}
+        }
+        async function api(path, method, body) {
+            const headers = { 'Content-Type': 'application/json' };
+            const token = getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const res = await fetch(path, { method: method || 'GET', headers, body: body ? JSON.stringify(body) : undefined });
+            let data = {};
+            try { data = await res.json(); } catch (e) {}
+            if (!res.ok) {
+                const err = new Error(data.error || ('Request gagal (' + res.status + ')'));
+                err.status = res.status;
+                throw err;
+            }
+            return data;
+        }
+
+        async function handleAdminLogin() {
+            const u = document.getElementById('admin-username').value.trim();
+            const p = document.getElementById('admin-password').value.trim();
+            const st = document.getElementById('admin-auth-status');
+            if (!u || !p) { st.style.color = '#ef4444'; st.innerText = 'Username & password wajib diisi.'; return; }
+            try {
+                const data = await api('/api/auth/login', 'POST', { username: u, password: p });
+                setSession(data.token, data.user.username);
+                showMain();
+                await loadAdminData();
+            } catch (e) {
+                st.style.color = '#ef4444'; st.innerText = e.message || 'Gagal login.';
+            }
+        }
+        function handleAdminLogout() { clearSession(); location.reload(); }
+        function showMain() {
+            document.getElementById('admin-auth').style.display = 'none';
+            document.getElementById('admin-main').style.display = 'flex';
+        }
+
+        async function loadAdminData() {
+            try {
+                const [usersRes, linksRes] = await Promise.all([
+                    api('/api/admin/users', 'GET'),
+                    api('/api/admin/links', 'GET'),
+                ]);
+                usersList = usersRes.users || [];
+                if (Array.isArray(linksRes.links) && linksRes.links.length === totalButtons) missionLinks = linksRes.links;
+                renderAdmin();
+            } catch (e) {
+                if (e.status === 401) { clearSession(); location.reload(); return; }
+                alert(e.message || 'Gagal memuat data admin.');
+            }
+        }
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
 
         function renderAdmin() {
-            let usersList = JSON.parse(localStorage.getItem('usersList')) || [];
             const usersContainer = document.getElementById('admin-users-container');
             usersContainer.innerHTML = usersList.length === 0 ? "<p>Belum ada user.</p>" : "";
-            usersList.forEach((usr, idx) => {
+            usersList.forEach((usr) => {
+                const activeRef = usersList.filter(x => x.referredBy === usr.username && x.subStatus === 'active' && x.subExpiryDate && x.subExpiryDate > Date.now()).length;
+                const totalRef = usersList.filter(x => x.referredBy === usr.username).length;
                 usersContainer.innerHTML += `
                     <div class="admin-card" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div><b>${usr.username}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${usr.balance.toLocaleString('id-ID')} | VIP: ${usr.subStatus}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${usersList.filter(x => x.referredBy === usr.username).length} total | ${usersList.filter(x => x.referredBy === usr.username && x.subStatus === 'active' && x.subExpiryDate && x.subExpiryDate > Date.now()).length} aktif (VIP) | Bonus: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + usr.referredBy : ''}</span></div>
-                        <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock(${idx})">${usr.isBlocked?'Buka':'Blokir'}</button>
+                        <div><b>${esc(usr.username)}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${(usr.balance || 0).toLocaleString('id-ID')} | VIP: ${esc(usr.subStatus)}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${totalRef} total | ${activeRef} aktif (VIP) | Bonus: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + esc(usr.referredBy) : ''}</span></div>
+                        <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock('${esc(usr.username)}', ${!usr.isBlocked})">${usr.isBlocked?'Buka':'Blokir'}</button>
                     </div>`;
             });
 
@@ -47,20 +129,21 @@
             activeSubs.forEach(usr => {
                 subContainer.innerHTML += `
                     <div class="admin-card">
-                        <p><b>User:</b> ${usr.username}</p>
-                        <img src="${usr.paymentProofUrl}" style="max-width:150px; border-radius:6px; display:block; margin-bottom:8px;">
-                        <a href="${usr.paymentProofUrl}" download="${usr.paymentProofName}" class="action-btn" style="text-decoration:none; background:#10b981;">Download</a>
+                        <p><b>User:</b> ${esc(usr.username)}</p>
+                        <img src="${esc(usr.paymentProofUrl)}" style="max-width:150px; border-radius:6px; display:block; margin-bottom:8px;">
+                        <a href="${esc(usr.paymentProofUrl)}" download="${esc(usr.paymentProofName || 'bukti')}" class="action-btn" style="text-decoration:none; background:#10b981;">Download</a>
                     </div>`;
             });
 
-            let allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
             const wdContainer = document.getElementById('admin-wd-container');
+            const allWd = [];
+            usersList.forEach(u => (u.withdrawRequests || []).forEach(w => allWd.push({ ...w, username: u.username })));
             wdContainer.innerHTML = allWd.length === 0 ? "<p>Tidak ada withdraw.</p>" : "";
-            allWd.forEach((wd, idx) => {
+            allWd.forEach((wd) => {
                 wdContainer.innerHTML += `
                     <div class="admin-card">
-                        <p><b>${wd.username}</b> - Rp ${wd.amount.toLocaleString('id-ID')} (${wd.status})</p>
-                        ${wd.status==='Pending'?`<button class="action-btn" style="background:#10b981;" onclick="processWD(${idx}, 'Disetujui')">Setujui</button> <button class="action-btn" style="background:#ef4444;" onclick="processWD(${idx}, 'Ditolak')">Tolak</button>`:''}
+                        <p><b>${esc(wd.username)}</b> - Rp ${(wd.amount || 0).toLocaleString('id-ID')} (${esc(wd.status)})</p>
+                        ${wd.status==='Pending'?`<button class="action-btn" style="background:#10b981;" onclick="processWD('${esc(wd.username)}', '${esc(wd.id)}', 'Disetujui')">Setujui</button> <button class="action-btn" style="background:#ef4444;" onclick="processWD('${esc(wd.username)}', '${esc(wd.id)}', 'Ditolak')">Tolak</button>`:''}
                     </div>`;
             });
 
@@ -70,38 +153,50 @@
                 linksContainer.innerHTML += `
                     <div class="admin-card">
                         <label>Tombol #${i+1}:</label>
-                        <input type="text" id="link-${i}" value="${missionLinks[i]}">
+                        <input type="text" id="link-${i}" value="${esc(missionLinks[i])}">
                         <button class="action-btn" onclick="saveLink(${i})">Simpan</button>
                     </div>`;
             }
         }
 
-        function toggleBlock(i) {
-            let list = JSON.parse(localStorage.getItem('usersList')) || [];
-            list[i].isBlocked = !list[i].isBlocked;
-            localStorage.setItem('usersList', JSON.stringify(list));
-            renderAdmin();
+        async function toggleBlock(username, blocked) {
+            try {
+                await api('/api/admin/block', 'POST', { username, blocked });
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal mengubah blokir.'); }
         }
 
-        function saveLink(i) {
-            missionLinks[i] = document.getElementById(`link-${i}`).value.trim();
-            localStorage.setItem('missionLinks', JSON.stringify(missionLinks));
-            alert("Link disimpan!");
-        }
-
-        function processWD(idx, status) {
-            let allWd = JSON.parse(localStorage.getItem('allWithdraws')) || [];
-            allWd[idx].status = status;
-            if (status === 'Ditolak') {
-                let list = JSON.parse(localStorage.getItem('usersList')) || [];
-                let usr = list.find(x => x.username === allWd[idx].username);
-                if (usr) { usr.balance += allWd[idx].amount; localStorage.setItem('usersList', JSON.stringify(list)); }
+        async function saveLink(i) {
+            const links = [];
+            for (let j = 0; j < totalButtons; j++) {
+                const el = document.getElementById(`link-${j}`);
+                links.push(el ? el.value.trim() : missionLinks[j]);
             }
-            localStorage.setItem('allWithdraws', JSON.stringify(allWd));
-            renderAdmin();
+            try {
+                const data = await api('/api/admin/links', 'POST', { links });
+                missionLinks = data.links;
+                alert("Link disimpan!");
+            } catch (e) { alert(e.message || 'Gagal menyimpan link.'); }
         }
 
-        renderAdmin();
+        async function processWD(username, withdrawId, status) {
+            try {
+                await api('/api/admin/withdraw', 'POST', { username, withdrawId, status });
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal memproses withdraw.'); }
+        }
+
+        (async function initAdmin() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                await api('/api/me', 'GET');
+                showMain();
+                await loadAdminData();
+            } catch (e) {
+                clearSession();
+            }
+        })();
     </script>
 </body>
 </html>
