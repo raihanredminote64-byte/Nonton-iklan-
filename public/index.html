@@ -175,6 +175,7 @@
         <div class="modal-content">
             <h3>⏳ Sedang Menonton Iklan...</h3>
             <p style="font-size: 13px; color: #666;">Jangan tutup tab iklan sebelum hitungan 30 detik selesai!</p>
+            <p style="font-size: 13px; color: #dc2626; font-weight: 700;">⚠️ Jika keluar kurang dari 30 detik, misi akan dinyatakan gagal.</p>
             <h1 id="countdown-timer" style="color: #4f46e5; font-size: 48px; margin: 15px 0;">30</h1>
         </div>
     </div>
@@ -321,7 +322,7 @@
             const cWin = setInterval(() => { if (win && win.closed) closed = true; }, 500);
             const intv = setInterval(() => {
                 timeLeft--; timerDisplay.innerText = timeLeft;
-                if (closed) { clearInterval(intv); clearInterval(cWin); timerModal.style.display = 'none'; showInfoPopup("Gagal", "Tab ditutup.", false); return; }
+                if (closed) { clearInterval(intv); clearInterval(cWin); timerModal.style.display = 'none'; const elapsed = 30 - timeLeft; showInfoPopup("Gagal", `Tab iklan ditutup setelah ${elapsed} detik (kurang dari 30 detik).<br><br>⚠️ Jika keluar kurang dari 30 detik, misi akan dinyatakan gagal.<br>Silakan ulangi misi dan tetap di tab iklan sampai hitungan 30 detik selesai.`, false); return; }
                 if (timeLeft <= 0) {
                     clearInterval(intv); clearInterval(cWin); timerModal.style.display = 'none';
                     activeUser.missionCompleted[index] = true; activeUser.balance += 60;
