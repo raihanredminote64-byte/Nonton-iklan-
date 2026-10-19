@@ -213,13 +213,14 @@
                 if (activeUser.referralEarnings === undefined) activeUser.referralEarnings = 0;
                 if (activeUser.referredBy === undefined) activeUser.referredBy = null;
                 if (activeUser.referralBonusPaid === undefined) activeUser.referralBonusPaid = false;
+                if (!Array.isArray(activeUser.missionCooldownUntil)) activeUser.missionCooldownUntil = Array(totalButtons).fill(0);
             } else {
                 const refCode = getReferralCodeFromUrl().trim();
                 const referrerExists = refCode && refCode !== u && usersList.some(x => x.username === refCode);
                 activeUser = {
                     username: u, password: p, balance: 0, isBlocked: false,
                     subStatus: 'inactive', subExpiryDate: null, paymentProofName: null,
-                    paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false),
+                    paymentProofUrl: null, missionCompleted: Array(totalButtons).fill(false), missionCooldownUntil: Array(totalButtons).fill(0),
                     referredBy: referrerExists ? refCode : null, referralEarnings: 0, referralBonusPaid: false
                 };
                 usersList.push(activeUser);
@@ -319,25 +320,59 @@
             reader.readAsDataURL(fileInput.files[0]);
         }
 
+        let cooldownInterval = null;
+        function startCooldownUpdater() {
+            if (cooldownInterval) clearInterval(cooldownInterval);
+            const hasCooldown = () => (activeUser.missionCooldownUntil || []).some(ts => ts && ts > Date.now());
+            if (!hasCooldown()) return;
+            cooldownInterval = setInterval(() => {
+                if (!activeUser) { clearInterval(cooldownInterval); cooldownInterval = null; return; }
+                const now = Date.now();
+                let anyActive = false;
+                let anyExpired = false;
+                const buttons = document.querySelectorAll('[data-mission-index]');
+                buttons.forEach(btn => {
+                    const idx = parseInt(btn.getAttribute('data-mission-index'), 10);
+                    const until = (activeUser.missionCooldownUntil || [])[idx] || 0;
+                    if (until > now) {
+                        anyActive = true;
+                        btn.innerText = 'Tunggu ' + Math.ceil((until - now) / 1000) + 's';
+                        btn.disabled = true;
+                    } else if (until > 0) {
+                        anyExpired = true;
+                    }
+                });
+                if (anyExpired && !anyActive) {
+                    clearInterval(cooldownInterval); cooldownInterval = null;
+                    renderUserMissions();
+                } else if (!anyActive && !anyExpired) {
+                    clearInterval(cooldownInterval); cooldownInterval = null;
+                }
+            }, 500);
+        }
         function renderUserMissions() {
             renderSubscriptionBox();
             document.getElementById('balance').innerText = activeUser.balance.toLocaleString('id-ID');
             let missionLinks = JSON.parse(localStorage.getItem('missionLinks')) || Array(totalButtons).fill("https://sfl.gl/gMmpBje");
             const container = document.getElementById('button-container');
             container.innerHTML = "";
+            const now = Date.now();
             for (let i = 0; i < totalButtons; i++) {
                 const card = document.createElement('div');
                 card.className = 'ad-card';
                 card.innerHTML = `<div style="font-weight:700;">Misi #${i + 1}</div><div style="color:#10b981; font-size:13px;">+Rp 60</div>`;
                 const btn = document.createElement('button');
                 btn.className = 'ad-button';
+                btn.setAttribute('data-mission-index', String(i));
+                const cooldownUntil = (activeUser.missionCooldownUntil || [])[i] || 0;
                 if (activeUser.isBlocked) { btn.innerText = "Diblokir"; btn.disabled = true; }
                 else if (activeUser.subStatus !== 'active') { btn.innerText = "Terkunci"; btn.disabled = true; }
-                else if (activeUser.missionCompleted[i]) { btn.innerText = "Selesai"; btn.disabled = true; btn.style.background = '#10b981'; }
+                else if (cooldownUntil > now) { btn.innerText = 'Tunggu ' + Math.ceil((cooldownUntil - now) / 1000) + 's'; btn.disabled = true; btn.style.background = '#f59e0b'; }
                 else { btn.innerText = "Mulai Misi"; btn.onclick = () => startMission(i, missionLinks[i]); }
                 card.appendChild(btn); container.appendChild(card);
             }
             renderReferralBox();
+            startCooldownUpdater();
         }
 
         function getReferralLink() {
@@ -396,7 +431,9 @@
             adRunning = true;
             show_10837371('pop').then(() => {
                 adRunning = false;
+                if (!Array.isArray(activeUser.missionCooldownUntil)) activeUser.missionCooldownUntil = Array(totalButtons).fill(0);
                 activeUser.missionCompleted[index] = true; activeUser.balance += 60;
+                activeUser.missionCooldownUntil[index] = Date.now() + 30000;
                 saveActiveUser(); renderUserMissions(); renderReferralBox();
                 showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
             }).catch(() => {
