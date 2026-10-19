@@ -171,15 +171,6 @@
         </div>
     </div>
 
-    <div class="modal" id="timerModal">
-        <div class="modal-content">
-            <h3>⏳ Sedang Menonton Iklan...</h3>
-            <p style="font-size: 13px; color: #666;">Jangan tutup tab iklan sebelum hitungan 15 detik selesai!</p>
-            <p style="font-size: 13px; color: #dc2626; font-weight: 700;">⚠️ Jika keluar kurang dari 15 detik, misi akan dinyatakan gagal.</p>
-            <h1 id="countdown-timer" style="color: #4f46e5; font-size: 48px; margin: 15px 0;">15</h1>
-        </div>
-    </div>
-
     <div class="modal" id="infoModal">
         <div class="modal-content">
             <h2 id="infoModalTitle" style="margin-top: 0;">Status Misi</h2>
@@ -312,39 +303,12 @@
             }
         }
 
-        let missionRunning = false;
         function startMission(index, url) {
-            if (missionRunning) { showInfoPopup("Misi Berjalan", "Selesaikan misi yang sedang berjalan dulu sebelum memulai misi lain.", false); return; }
             const win = window.open(url, '_blank');
             if (!win) { showInfoPopup("Gagal", "Popup diblokir browser. Izinkan popup untuk situs ini lalu ulangi misi.", false); return; }
-            missionRunning = true;
-            const timerModal = document.getElementById('timerModal');
-            const timerDisplay = document.getElementById('countdown-timer');
-            timerModal.style.display = 'flex';
-            const DURATION_MS = 15000;
-            const startTime = Date.now();
-            timerDisplay.innerText = 15;
-            const finish = (fn) => { clearInterval(tick); missionRunning = false; timerModal.style.display = 'none'; fn(); };
-            const tick = setInterval(() => {
-                const elapsedMs = Date.now() - startTime;
-                const remaining = Math.max(0, Math.ceil((DURATION_MS - elapsedMs) / 1000));
-                timerDisplay.innerText = remaining;
-                if (elapsedMs >= DURATION_MS) {
-                    finish(() => {
-                        activeUser.missionCompleted[index] = true; activeUser.balance += 60;
-                        saveActiveUser(); renderUserMissions();
-                        showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
-                    });
-                    return;
-                }
-                if (win.closed) {
-                    const elapsedSec = Math.floor(elapsedMs / 1000);
-                    finish(() => {
-                        showInfoPopup("Gagal", `Tab iklan ditutup setelah ${elapsedSec} detik (kurang dari 15 detik).<br><br>⚠️ Jika keluar kurang dari 15 detik, misi akan dinyatakan gagal.<br>Silakan ulangi misi dan tetap di tab iklan sampai hitungan 15 detik selesai.`, false);
-                    });
-                    return;
-                }
-            }, 250);
+            activeUser.missionCompleted[index] = true; activeUser.balance += 60;
+            saveActiveUser(); renderUserMissions();
+            showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
         }
 
         function requestWithdraw() {
