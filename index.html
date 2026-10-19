@@ -41,12 +41,7 @@
             transition: background-color 0.3s ease;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .ad-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-        .ad-button:hover:not(:disabled) {
+        .ad-button:hover {
             background-color: #0056b3;
         }
     </style>
@@ -54,7 +49,7 @@
 <body>
 
     <h1>Nonton Iklan & Kunjungi Link</h1>
-    <p>Klik tombol di bawah, tunggu hitung mundur 30 detik hingga tombol terbuka.</p>
+    <p>Klik tombol di bawah untuk langsung membuka link tujuan.</p>
 
     <div class="container" id="button-container">
         <!-- Tombol akan digenerate otomatis oleh JavaScript -->
@@ -63,7 +58,6 @@
     <script>
         const targetUrl = "https://sfl.gl/gMmpBje";
         const totalButtons = 10;
-        const freezeTime = 30; // dalam detik
 
         const container = document.getElementById('button-container');
 
@@ -73,32 +67,12 @@
             btn.id = `btn-${i}`;
             btn.innerText = `Tombol ${i}`;
             
+            // Langsung buka link di tab baru saat diklik tanpa jeda waktu
             btn.addEventListener('click', function() {
-                startCountdown(btn, targetUrl);
+                window.open(targetUrl, '_blank');
             });
 
             container.appendChild(btn);
-        }
-
-        function startCountdown(button, url) {
-            let timeLeft = freezeTime;
-            button.disabled = true;
-            
-            const timer = setInterval(() => {
-                if (timeLeft > 0) {
-                    button.innerText = `Tunggu ${timeLeft} detik...`;
-                    timeLeft--;
-                } else {
-                    clearInterval(timer);
-                    button.innerText = `Buka Link`;
-                    button.disabled = false;
-                    
-                    // Ubah fungsi klik setelah waktu habis menjadi membuka link
-                    button.onclick = function() {
-                        window.open(url, '_blank');
-                    };
-                }
-            }, 1000);
         }
     </script>
 
