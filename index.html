@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Nonton Iklan</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 900px;
+        }
+        .ad-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .ad-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .ad-button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Nonton Iklan & Kunjungi Link</h1>
+    <p>Klik tombol di bawah, tunggu hitung mundur 30 detik hingga tombol terbuka.</p>
+
+    <div class="container" id="button-container">
+        <!-- Tombol akan digenerate otomatis oleh JavaScript -->
+    </div>
+
+    <script>
+        const targetUrl = "https://sfl.gl/gMmpBje";
+        const totalButtons = 10;
+        const freezeTime = 30; // dalam detik
+
+        const container = document.getElementById('button-container');
+
+        for (let i = 1; i <= totalButtons; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'ad-button';
+            btn.id = `btn-${i}`;
+            btn.innerText = `Tombol ${i}`;
+            
+            btn.addEventListener('click', function() {
+                startCountdown(btn, targetUrl);
+            });
+
+            container.appendChild(btn);
+        }
+
+        function startCountdown(button, url) {
+            let timeLeft = freezeTime;
+            button.disabled = true;
+            
+            const timer = setInterval(() => {
+                if (timeLeft > 0) {
+                    button.innerText = `Tunggu ${timeLeft} detik...`;
+                    timeLeft--;
+                } else {
+                    clearInterval(timer);
+                    button.innerText = `Buka Link`;
+                    button.disabled = false;
+                    
+                    // Ubah fungsi klik setelah waktu habis menjadi membuka link
+                    button.onclick = function() {
+                        window.open(url, '_blank');
+                    };
+                }
+            }, 1000);
+        }
+    </script>
+
+</body>
+</html>
