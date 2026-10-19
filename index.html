@@ -128,6 +128,7 @@
             width: 90%;
         }
     </style>
+    <script src='//libtl.com/sdk.js' data-zone='10837371' data-sdk='show_10837371'></script>
 </head>
 <body>
     <div id="auth-screen" class="card-box">
@@ -303,12 +304,20 @@
             }
         }
 
+        let adRunning = false;
         function startMission(index, url) {
-            const win = window.open(url, '_blank');
-            if (!win) { showInfoPopup("Gagal", "Popup diblokir browser. Izinkan popup untuk situs ini lalu ulangi misi.", false); return; }
-            activeUser.missionCompleted[index] = true; activeUser.balance += 60;
-            saveActiveUser(); renderUserMissions();
-            showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
+            if (adRunning) { showInfoPopup("Iklan Berjalan", "Tunggu iklan yang sedang berjalan selesai dulu.", false); return; }
+            if (typeof show_10837371 !== 'function') { showInfoPopup("Gagal", "Iklan belum siap. Coba lagi sebentar lagi.", false); return; }
+            adRunning = true;
+            show_10837371('pop').then(() => {
+                adRunning = false;
+                activeUser.missionCompleted[index] = true; activeUser.balance += 60;
+                saveActiveUser(); renderUserMissions();
+                showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
+            }).catch(() => {
+                adRunning = false;
+                showInfoPopup("Gagal", "Iklan gagal dimuat atau terjadi error. Coba lagi.", false);
+            });
         }
 
         function requestWithdraw() {
