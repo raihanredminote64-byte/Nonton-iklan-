@@ -465,6 +465,7 @@
             }
             renderReferralBox();
             startCooldownUpdater();
+            preloadNextAd();
         }
 
         function getReferralLink() {
@@ -498,11 +499,28 @@
         }
 
         let adRunning = false;
+        let nextAdEventId = null;
+        let adPreloaded = false;
+        // Preload Rewarded Interstitial (Monetag) agar iklan siap saat tombol diklik.
+        function preloadNextAd() {
+            if (adPreloaded) return;
+            if (typeof show_10837371 !== 'function') return;
+            nextAdEventId = 'evt-' + (activeUser && activeUser.username ? activeUser.username : 'anon') + '-' + Date.now();
+            try {
+                const p = show_10837371({ type: 'preload', ymid: nextAdEventId });
+                if (p && typeof p.catch === 'function') p.catch(() => {});
+                adPreloaded = true;
+            } catch (e) {}
+        }
         function startMission(index, url) {
             if (adRunning) { showInfoPopup("Iklan Berjalan", "Tunggu iklan yang sedang berjalan selesai dulu.", false); return; }
             if (typeof show_10837371 !== 'function') { showInfoPopup("Gagal", "Iklan belum siap. Coba lagi sebentar lagi.", false); return; }
             adRunning = true;
-            show_10837371('pop').then(async () => {
+            const ymid = nextAdEventId || ('evt-' + (activeUser && activeUser.username ? activeUser.username : 'anon') + '-' + Date.now());
+            nextAdEventId = null;
+            adPreloaded = false;
+            // Rewarded Interstitial: show_10837371({ ymid }) — resolve = reward, reject = gagal.
+            show_10837371({ ymid: ymid }).then(async () => {
                 adRunning = false;
                 try {
                     const data = await api('/api/mission/complete', 'POST', { missionIndex: index });
@@ -512,9 +530,11 @@
                 } catch (err) {
                     showInfoPopup("Gagal", err.message || 'Gagal mencatat misi.', false);
                 }
+                preloadNextAd();
             }).catch(() => {
                 adRunning = false;
                 showInfoPopup("Gagal", "Iklan gagal dimuat atau terjadi error. Coba lagi.", false);
+                preloadNextAd();
             });
         }
 
