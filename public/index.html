@@ -166,9 +166,12 @@
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
             <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 2.000 per undangan</b> yang membayar untuk membuka kunci (VIP 7 hari). Jika dalam 7 hari tidak diperpanjang, tombol misi terkunci kembali.</p>
-            <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu:</label>
+            <label style="font-weight: 600; font-size: 13px;">Link Referral Telegram (Mini App):</label>
             <input type="text" id="ref-link" readonly style="background:#f9fafb;">
-            <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link</button>
+            <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link Telegram</button>
+            <label style="font-weight: 600; font-size: 13px; margin-top: 10px; display: block;">Link Referral Web (browser):</label>
+            <input type="text" id="ref-link-web" readonly style="background:#f9fafb;">
+            <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralWebLink()">📋 Salin Link Web</button>
             <p id="ref-stats" style="font-size: 13px; color: #4b5563; margin: 12px 0 4px 0;"></p>
             <p id="ref-invited-by" style="font-size: 13px; color: #4b5563; margin: 4px 0;"></p>
             <p id="ref-copy-status" style="font-size: 13px; font-weight: bold; margin-top: 8px;"></p>
@@ -468,13 +471,17 @@
         }
 
         function getReferralLink() {
-            // Referral selalu menuju Telegram Mini App (dApp): t.me/Cuan2026_bot/myapp?startapp=ref_USERNAME
+            // Referral utama menuju Telegram Mini App (dApp): t.me/Cuan2026_bot/myapp?startapp=ref_USERNAME
             return 'https://t.me/Cuan2026_bot/myapp?startapp=ref_' + encodeURIComponent(activeUser.username);
+        }
+        function getReferralWebLink() {
+            // Alternatif untuk browser biasa (Mini App t.me hanya bisa dibuka di dalam Telegram).
+            return 'https://nontoniklan.vercel.app/?ref=' + encodeURIComponent(activeUser.username);
         }
         function copyReferralLink() {
             const link = getReferralLink();
             const status = document.getElementById('ref-copy-status');
-            const done = () => { status.style.color = '#10b981'; status.innerText = 'Link referral tersalin!'; };
+            const done = () => { status.style.color = '#10b981'; status.innerText = 'Link referral Telegram tersalin!'; };
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(link).then(done).catch(() => {
                     const input = document.getElementById('ref-link'); input.select(); document.execCommand('copy'); done();
@@ -483,9 +490,23 @@
                 const input = document.getElementById('ref-link'); input.select(); document.execCommand('copy'); done();
             }
         }
+        function copyReferralWebLink() {
+            const link = getReferralWebLink();
+            const status = document.getElementById('ref-copy-status');
+            const done = () => { status.style.color = '#10b981'; status.innerText = 'Link referral Web tersalin!'; };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link).then(done).catch(() => {
+                    const input = document.getElementById('ref-link-web'); input.select(); document.execCommand('copy'); done();
+                });
+            } else {
+                const input = document.getElementById('ref-link-web'); input.select(); document.execCommand('copy'); done();
+            }
+        }
         async function renderReferralBox() {
             const linkInput = document.getElementById('ref-link');
             if (linkInput) linkInput.value = getReferralLink();
+            const linkWebInput = document.getElementById('ref-link-web');
+            if (linkWebInput) linkWebInput.value = getReferralWebLink();
             const stats = document.getElementById('ref-stats');
             try {
                 const s = await api('/api/referral/stats', 'GET');
