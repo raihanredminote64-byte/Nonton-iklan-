@@ -12,6 +12,11 @@
         .admin-card { background: white; padding: 15px; border-radius: 10px; border: 1px solid #e5e7eb; margin-bottom: 10px; }
         .action-btn { background: #4f46e5; color: white; border: none; padding: 10px 15px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; }
         input[type="text"] { width: 100%; padding: 10px; margin: 6px 0 10px 0; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; }
+        select { padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; background: white; }
+        .user-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .user-filter-bar input[type="text"] { flex: 1 1 200px; margin: 0; }
+        .user-filter-bar select { flex: 0 1 auto; }
+        .user-filter-bar .action-btn { flex: 0 0 auto; }
     </style>
 </head>
 <body>
@@ -35,7 +40,7 @@
         </div>
     </header>
     <div class="admin-view">
-        <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div id="admin-users-container"></div></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-vip" onchange="onUserFilterChange()"><option value="all">VIP: Semua</option><option value="active">VIP: Aktif</option><option value="inactive">VIP: Tidak Aktif</option></select><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">💳 Bukti Pembayaran</h3><div id="admin-sub-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
@@ -110,10 +115,42 @@
             return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        function renderAdmin() {
+        function getFilteredUsers() {
+            const q = (document.getElementById('user-search') ? document.getElementById('user-search').value : '').trim().toLowerCase();
+            const vipF = document.getElementById('user-filter-vip') ? document.getElementById('user-filter-vip').value : 'all';
+            const blockF = document.getElementById('user-filter-block') ? document.getElementById('user-filter-block').value : 'all';
+            const sort = document.getElementById('user-sort') ? document.getElementById('user-sort').value : 'newest';
+            let list = usersList.filter((u) => {
+                if (q && (u.username || '').toLowerCase().indexOf(q) === -1) return false;
+                if (vipF === 'active' && !(u.subStatus === 'active' && u.subExpiryDate && u.subExpiryDate > Date.now())) return false;
+                if (vipF === 'inactive' && (u.subStatus === 'active' && u.subExpiryDate && u.subExpiryDate > Date.now())) return false;
+                if (blockF === 'blocked' && !u.isBlocked) return false;
+                if (blockF === 'open' && u.isBlocked) return false;
+                return true;
+            });
+            if (sort === 'oldest') list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            else if (sort === 'balance-desc') list.sort((a, b) => (b.balance || 0) - (a.balance || 0));
+            else if (sort === 'balance-asc') list.sort((a, b) => (a.balance || 0) - (b.balance || 0));
+            else if (sort === 'name-asc') list.sort((a, b) => String(a.username).localeCompare(String(b.username)));
+            else if (sort === 'name-desc') list.sort((a, b) => String(b.username).localeCompare(String(a.username)));
+            else list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            return list;
+        }
+        function onUserFilterChange() { renderUsersSection(); }
+        function resetUserFilter() {
+            const s = document.getElementById('user-search'); if (s) s.value = '';
+            const v = document.getElementById('user-filter-vip'); if (v) v.value = 'all';
+            const b = document.getElementById('user-filter-block'); if (b) b.value = 'all';
+            const o = document.getElementById('user-sort'); if (o) o.value = 'newest';
+            renderUsersSection();
+        }
+        function renderUsersSection() {
             const usersContainer = document.getElementById('admin-users-container');
-            usersContainer.innerHTML = usersList.length === 0 ? "<p>Belum ada user.</p>" : "";
-            usersList.forEach((usr) => {
+            const filtered = getFilteredUsers();
+            const countEl = document.getElementById('user-count');
+            if (countEl) countEl.innerText = 'Menampilkan ' + filtered.length + ' dari ' + usersList.length + ' user';
+            usersContainer.innerHTML = filtered.length === 0 ? "<p>Tidak ada user yang cocok dengan pencarian/filter.</p>" : "";
+            filtered.forEach((usr) => {
                 const activeRef = usersList.filter(x => x.referredBy === usr.username && x.subStatus === 'active' && x.subExpiryDate && x.subExpiryDate > Date.now()).length;
                 const totalRef = usersList.filter(x => x.referredBy === usr.username).length;
                 usersContainer.innerHTML += `
@@ -122,6 +159,10 @@
                         <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock('${esc(usr.username)}', ${!usr.isBlocked})">${usr.isBlocked?'Buka':'Blokir'}</button>
                     </div>`;
             });
+        }
+
+        function renderAdmin() {
+            renderUsersSection();
 
             const subContainer = document.getElementById('admin-sub-container');
             let activeSubs = usersList.filter(u => u.paymentProofUrl);
