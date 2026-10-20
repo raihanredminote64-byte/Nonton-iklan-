@@ -129,6 +129,7 @@
         }
     </style>
     <script src='//libtl.com/sdk.js' data-zone='10837371' data-sdk='show_10837371'></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div id="auth-screen" class="card-box">
@@ -230,8 +231,26 @@
         }
 
         function getReferralCodeFromUrl() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+                    const sp = window.Telegram.WebApp.initDataUnsafe.start_param || '';
+                    if (sp) {
+                        if (sp.indexOf('ref_') === 0 && sp.length > 4) return decodeURIComponent(sp.slice(4));
+                        return decodeURIComponent(sp);
+                    }
+                }
+            } catch (e) {}
             try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch (e) { return ''; }
         }
+        // Inisialisasi Telegram Mini App (aman dipanggil juga di browser biasa).
+        (function initTelegramWebApp() {
+            try {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.ready();
+                    window.Telegram.WebApp.expand();
+                }
+            } catch (e) {}
+        })();
 
         function getLegacyUser(username, password) {
             try {
@@ -449,15 +468,8 @@
         }
 
         function getReferralLink() {
-            let base;
-            try {
-                if (window.location.protocol && window.location.protocol.indexOf('http') === 0) {
-                    base = window.location.origin + window.location.pathname;
-                } else {
-                    base = 'https://nontoniklan.vercel.app/';
-                }
-            } catch (e) { base = 'https://nontoniklan.vercel.app/'; }
-            return base + '?ref=' + encodeURIComponent(activeUser.username);
+            // Referral selalu menuju Telegram Mini App (dApp): t.me/Cuan2026_bot/myapp?startapp=ref_USERNAME
+            return 'https://t.me/Cuan2026_bot/myapp?startapp=ref_' + encodeURIComponent(activeUser.username);
         }
         function copyReferralLink() {
             const link = getReferralLink();
