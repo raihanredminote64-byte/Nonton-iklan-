@@ -1,11 +1,11 @@
 'use strict';
 
 const { sendJson, handleOptions, readJson, getTokenFromReq } = require('../../lib/http');
-const { TOTAL_BUTTONS, publicUser, saveUser } = require('../../lib/db');
+const { TOTAL_BUTTONS, publicUser, saveUser, getUser, getSettings } = require('../../lib/db');
 const { getAuthUser } = require('../../lib/auth');
 
-const REWARD = 60;
 const COOLDOWN_MS = 30000;
+const REFERRAL_BONUS = 2000;
 
 module.exports = async (req, res) => {
   if (handleOptions(req, res)) return;
@@ -24,17 +24,8 @@ module.exports = async (req, res) => {
     }
     if (user.isBlocked) return sendJson(res, 403, { error: 'Akun diblokir.' });
 
+    // Sistem VIP dihapus: semua tombol misi terbuka untuk semua user (kecuali diblokir/cooldown).
     const now = Date.now();
-    if (user.subStatus !== 'active') {
-      return sendJson(res, 403, { error: 'Akses terkunci. Top up VIP dulu.' });
-    }
-    if (user.subExpiryDate && now > user.subExpiryDate) {
-      user.subStatus = 'inactive';
-      user.subExpiryDate = null;
-      await saveUser(user);
-      return sendJson(res, 403, { error: 'VIP sudah kedaluwarsa. Perpanjang untuk membuka tombol.' });
-    }
-
     if (!Array.isArray(user.missionCooldownUntil)) user.missionCooldownUntil = Array(TOTAL_BUTTONS).fill(0);
     if (!Array.isArray(user.missionCompleted)) user.missionCompleted = Array(TOTAL_BUTTONS).fill(false);
     const until = user.missionCooldownUntil[missionIndex] || 0;
@@ -43,11 +34,28 @@ module.exports = async (req, res) => {
       return sendJson(res, 429, { error: `Tombol masih cooldown. Tunggu ${secs} detik lagi.` });
     }
 
-    user.balance = (user.balance || 0) + REWARD;
+    const settings = await getSettings();
+    const reward = settings.missionReward;
+    user.balance = (user.balance || 0) + reward;
     user.missionCompleted[missionIndex] = true;
     user.missionCooldownUntil[missionIndex] = now + COOLDOWN_MS;
+
+    // Bonus referral Rp 2000 SEKALI per undangan, saat yang diundang menyelesaikan misi
+    // (pengganti pemicu lama "bayar VIP", karena sistem VIP sudah dihapus).
+    if (user.referredBy && !user.referralBonusPaid) {
+      try {
+        const referrer = await getUser(user.referredBy);
+        if (referrer && !referrer.isBlocked) {
+          referrer.balance = (referrer.balance || 0) + REFERRAL_BONUS;
+          referrer.referralEarnings = (referrer.referralEarnings || 0) + REFERRAL_BONUS;
+          await saveUser(referrer);
+          user.referralBonusPaid = true;
+        }
+      } catch (e) { /* Kegagalan bonus tidak boleh menggagalkan misi user. */ }
+    }
+
     await saveUser(user);
-    return sendJson(res, 200, { user: publicUser(user), reward: REWARD });
+    return sendJson(res, 200, { user: publicUser(user), reward });
   } catch (e) {
     const status = e.status || 500;
     return sendJson(res, status, { error: e.message || 'Terjadi kesalahan server.' });

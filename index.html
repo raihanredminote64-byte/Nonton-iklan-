@@ -155,17 +155,11 @@
             </div>
         </header>
 
-        <div class="subscription-banner">
-            <h3 style="margin: 0; color: #b45309; font-size: 16px;">⭐ Status Akses VIP (Top Up Rp 5.000 / 7 Hari)</h3>
-            <p id="sub-status-text" style="color: #92400e; font-size: 13px; margin: 8px 0;">Memuat status langganan...</p>
-            <div id="sub-action-area"></div>
-        </div>
-
         <div class="container" id="button-container"></div>
 
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
-            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 2.000 per undangan</b> yang membayar untuk membuka kunci (VIP 7 hari). Jika dalam 7 hari tidak diperpanjang, tombol misi terkunci kembali.</p>
+            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 2.000 per undangan</b> yang menyelesaikan misi pertamanya. Bonus hanya sekali per undangan.</p>
             <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu (Telegram Mini App):</label>
             <input type="text" id="ref-link" readonly style="background:#f9fafb;">
             <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link</button>
@@ -195,9 +189,16 @@
 
     <script>
         const totalButtons = 10;
+        let missionReward = 60;
+        async function fetchSettings() {
+            try {
+                const s = await api('/api/settings', 'GET');
+                if (s && Number.isInteger(s.missionReward)) missionReward = s.missionReward;
+            } catch (e) {}
+            return missionReward;
+        }
         let activeUser = null;
         let missionLinksCache = null;
-        const danaPaymentUrl = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026101995063273";
 
         function getToken() { try { return localStorage.getItem('nonton_token') || ''; } catch (e) { return ''; } }
         function setSession(token, username) {
@@ -342,63 +343,6 @@
 
         function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
 
-        function renderSubscriptionBox() {
-            // Tampilan saja: jika expiry lewat, tampilkan terkunci (status resmi dicek server di /api/me & /api/mission).
-            if (activeUser.subStatus === 'active' && activeUser.subExpiryDate && new Date().getTime() > activeUser.subExpiryDate) {
-                activeUser.subStatus = 'inactive'; activeUser.subExpiryDate = null;
-            }
-            const statusText = document.getElementById('sub-status-text');
-            const actionArea = document.getElementById('sub-action-area');
-            if (activeUser.subStatus === 'active') {
-                const days = Math.max(1, Math.ceil((activeUser.subExpiryDate - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                statusText.innerHTML = `✅ <b>VIP Aktif</b> (Sisa ${days} hari). Jika tidak diperpanjang dalam 7 hari, tombol misi terkunci kembali.`;
-                actionArea.innerHTML = `
-                    <button class="action-btn" style="background:#d97706; width:auto; padding:8px 16px;" onclick="window.open('${danaPaymentUrl}', '_blank')">💰 Bayar Perpanjang via DANA (Rp 5.000)</button>
-                    <div style="background:white; padding:10px; border:1px dashed #d97706; border-radius:8px; margin-top:8px;">
-                        <label style="font-size:12px; font-weight:bold;">Perpanjang: Upload Screenshot Bukti:</label>
-                        <input type="file" id="proof-file" accept="image/*">
-                        <button class="action-btn" onclick="submitProof()">Kirim Bukti & Perpanjang +7 Hari</button>
-                    </div>
-                `;
-            } else {
-                statusText.innerHTML = `❌ <b>Akses Terkunci!</b> Top up Rp 5.000 untuk 7 hari.`;
-                actionArea.innerHTML = `
-                    <button class="action-btn" style="background:#10b981;" onclick="window.open('${danaPaymentUrl}', '_blank')">🚀 1. Bayar via DANA</button>
-                    <div style="background:white; padding:10px; border:1px dashed #d97706; border-radius:8px; margin-top:8px;">
-                        <label style="font-size:12px; font-weight:bold;">2. Upload Screenshot Bukti:</label>
-                        <input type="file" id="proof-file" accept="image/*">
-                        <button class="action-btn" onclick="submitProof()">Kirim & Buka Kunci</button>
-                    </div>
-                `;
-            }
-        }
-
-        async function submitProof() {
-            const fileInput = document.getElementById('proof-file');
-            if (!fileInput.files || fileInput.files.length === 0) { alert("Pilih file bukti!"); return; }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = async function() {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        const scale = 400 / img.width;
-                        canvas.width = 400; canvas.height = img.height * scale;
-                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                        const proofUrl = canvas.toDataURL('image/jpeg', 0.6);
-                        const data = await api('/api/vip/activate', 'POST', { proofName: fileInput.files[0].name, proofUrl });
-                        activeUser = data.user;
-                        showInfoPopup("Berhasil!", "VIP Aktif Otomatis!", true);
-                        renderUserMissions();
-                    } catch (err) {
-                        showInfoPopup("Gagal", err.message || 'Gagal mengaktifkan VIP.', false);
-                    }
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(fileInput.files[0]);
-        }
-
         let cooldownInterval = null;
         function startCooldownUpdater() {
             if (cooldownInterval) clearInterval(cooldownInterval);
@@ -443,7 +387,7 @@
         }
 
         async function renderUserMissions() {
-            renderSubscriptionBox();
+            await fetchSettings();
             document.getElementById('balance').innerText = (activeUser.balance || 0).toLocaleString('id-ID');
             const missionLinks = await fetchMissionLinks();
             const container = document.getElementById('button-container');
@@ -452,13 +396,12 @@
             for (let i = 0; i < totalButtons; i++) {
                 const card = document.createElement('div');
                 card.className = 'ad-card';
-                card.innerHTML = `<div style="font-weight:700;">Misi #${i + 1}</div><div style="color:#10b981; font-size:13px;">+Rp 60</div>`;
+                card.innerHTML = `<div style="font-weight:700;">Misi #${i + 1}</div><div style="color:#10b981; font-size:13px;">+Rp ${missionReward.toLocaleString('id-ID')}</div>`;
                 const btn = document.createElement('button');
                 btn.className = 'ad-button';
                 btn.setAttribute('data-mission-index', String(i));
                 const cooldownUntil = (activeUser.missionCooldownUntil || [])[i] || 0;
                 if (activeUser.isBlocked) { btn.innerText = "Diblokir"; btn.disabled = true; }
-                else if (activeUser.subStatus !== 'active') { btn.innerText = "Terkunci"; btn.disabled = true; }
                 else if (cooldownUntil > now) { btn.innerText = 'Tunggu ' + Math.ceil((cooldownUntil - now) / 1000) + 's'; btn.disabled = true; btn.style.background = '#f59e0b'; }
                 else { btn.innerText = "Mulai Misi"; btn.onclick = () => startMission(i, missionLinks[i]); }
                 card.appendChild(btn); container.appendChild(card);
@@ -490,9 +433,9 @@
             const stats = document.getElementById('ref-stats');
             try {
                 const s = await api('/api/referral/stats', 'GET');
-                if (stats) stats.innerHTML = `Total referral: <b>${s.total}</b> | Referral aktif (VIP): <b>${s.activeVIP}</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+                if (stats) stats.innerHTML = `Total referral: <b>${s.total}</b> | Referral aktif: <b>${s.active != null ? s.active : s.activeVIP}</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
             } catch (e) {
-                if (stats) stats.innerHTML = `Total referral: <b>-</b> | Referral aktif (VIP): <b>-</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
+                if (stats) stats.innerHTML = `Total referral: <b>-</b> | Referral aktif: <b>-</b> | Total bonus referral: <b>Rp ${(activeUser.referralEarnings || 0).toLocaleString('id-ID')}</b>`;
             }
             const invitedBy = document.getElementById('ref-invited-by');
             if (invitedBy) invitedBy.innerHTML = activeUser.referredBy ? `Diundang oleh: <b>${activeUser.referredBy}</b>` : '';
@@ -526,7 +469,7 @@
                     const data = await api('/api/mission/complete', 'POST', { missionIndex: index });
                     activeUser = data.user;
                     renderUserMissions(); renderReferralBox();
-                    showInfoPopup("Sukses!", "+Rp 60 ditambahkan.", true);
+                    showInfoPopup("Sukses!", "+Rp " + (data.reward != null ? data.reward : missionReward).toLocaleString('id-ID') + " ditambahkan.", true);
                 } catch (err) {
                     showInfoPopup("Gagal", err.message || 'Gagal mencatat misi.', false);
                 }
