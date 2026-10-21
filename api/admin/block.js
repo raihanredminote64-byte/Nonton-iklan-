@@ -1,7 +1,7 @@
 'use strict';
 
 const { sendJson, handleOptions, readJson, getTokenFromReq } = require('../../lib/http');
-const { normalizeUsername, getUser, saveUser, publicUser } = require('../../lib/db');
+const { normalizeUsername, getUser, saveUser, publicUser, applyVerification } = require('../../lib/db');
 const { getAuthUser } = require('../../lib/auth');
 
 module.exports = async (req, res) => {
@@ -18,7 +18,16 @@ module.exports = async (req, res) => {
     if (!username) return sendJson(res, 400, { error: 'Username wajib diisi.' });
     const target = await getUser(username);
     if (!target) return sendJson(res, 404, { error: 'User tidak ditemukan.' });
-    target.isBlocked = !!body.blocked;
+    // Hanya ubah field yang dikirim agar toggle verifikasi tidak mengutak-atik status blokir (dan sebaliknya).
+    if (typeof body.blocked === 'boolean') target.isBlocked = body.blocked;
+    if (typeof body.verified === 'boolean') {
+      if (body.verified && !target.isVerified) {
+        await applyVerification(target);
+      } else if (!body.verified) {
+        target.isVerified = false;
+        target.verifiedAt = null;
+      }
+    }
     await saveUser(target);
     return sendJson(res, 200, { user: publicUser(target) });
   } catch (e) {

@@ -155,11 +155,17 @@
             </div>
         </header>
 
+        <div class="subscription-banner">
+            <h3 style="margin: 0; color: #b45309; font-size: 16px;">🛡️ Verifikasi Pengguna Asli (Bayar Rp 1.000)</h3>
+            <p id="verify-status-text" style="color: #92400e; font-size: 13px; margin: 8px 0;">Memuat status verifikasi...</p>
+            <div id="verify-action-area"></div>
+        </div>
+
         <div class="container" id="button-container"></div>
 
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
-            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 2.000 per undangan</b> yang menyelesaikan misi pertamanya. Bonus hanya sekali per undangan.</p>
+            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 500 per undangan</b> yang berhasil verifikasi (bayar Rp 1.000). Bonus hanya sekali per undangan.</p>
             <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu (Telegram Mini App):</label>
             <input type="text" id="ref-link" readonly style="background:#f9fafb;">
             <button class="action-btn" style="width:auto; padding:10px 18px;" onclick="copyReferralLink()">📋 Salin Link</button>
@@ -190,6 +196,7 @@
     <script>
         const totalButtons = 10;
         let missionReward = 60;
+        const danaVerifyUrl = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012092026102122773447";
         async function fetchSettings() {
             try {
                 const s = await api('/api/me', 'GET');
@@ -386,8 +393,56 @@
             return missionLinksCache;
         }
 
+        function renderVerificationBox() {
+            const statusText = document.getElementById('verify-status-text');
+            const actionArea = document.getElementById('verify-action-area');
+            if (!statusText || !actionArea) return;
+            if (activeUser.isVerified) {
+                statusText.innerHTML = `✅ <b>Akun Terverifikasi.</b> Semua tombol misi terbuka.`;
+                actionArea.innerHTML = '';
+            } else {
+                statusText.innerHTML = `❌ <b>Belum Terverifikasi!</b> Bayar Rp 1.000 untuk verifikasi pengguna asli dan membuka semua tombol misi. Setelah bayar, upload screenshot buktinya — verifikasi otomatis aktif.`;
+                actionArea.innerHTML = `
+                    <button class="action-btn" style="background:#10b981;" onclick="window.open('${danaVerifyUrl}', '_blank')">🚀 1. Bayar Rp 1.000 via DANA</button>
+                    <div style="background:white; padding:10px; border:1px dashed #d97706; border-radius:8px; margin-top:8px;">
+                        <label style="font-size:12px; font-weight:bold;">2. Upload Screenshot Bukti Top Up:</label>
+                        <input type="file" id="verify-file" accept="image/*">
+                        <button class="action-btn" onclick="submitVerification()">Kirim Bukti & Verifikasi Otomatis</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function submitVerification() {
+            const fileInput = document.getElementById('verify-file');
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert("Pilih file bukti!"); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = async function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const scale = 400 / img.width;
+                        canvas.width = 400; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const proofUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        const data = await api('/api/me', 'POST', { proofName: fileInput.files[0].name, proofUrl });
+                        activeUser = data.user;
+                        if (data.missionReward != null) missionReward = data.missionReward;
+                        showInfoPopup("Berhasil!", "Akun kamu sudah terverifikasi!", true);
+                        renderUserMissions();
+                    } catch (err) {
+                        showInfoPopup("Gagal", err.message || 'Gagal verifikasi.', false);
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+
         async function renderUserMissions() {
             await fetchSettings();
+            renderVerificationBox();
             document.getElementById('balance').innerText = (activeUser.balance || 0).toLocaleString('id-ID');
             const missionLinks = await fetchMissionLinks();
             const container = document.getElementById('button-container');
@@ -402,6 +457,7 @@
                 btn.setAttribute('data-mission-index', String(i));
                 const cooldownUntil = (activeUser.missionCooldownUntil || [])[i] || 0;
                 if (activeUser.isBlocked) { btn.innerText = "Diblokir"; btn.disabled = true; }
+                else if (!activeUser.isVerified) { btn.innerText = "Verifikasi Dulu"; btn.disabled = true; }
                 else if (cooldownUntil > now) { btn.innerText = 'Tunggu ' + Math.ceil((cooldownUntil - now) / 1000) + 's'; btn.disabled = true; btn.style.background = '#f59e0b'; }
                 else { btn.innerText = "Mulai Misi"; btn.onclick = () => startMission(i, missionLinks[i]); }
                 card.appendChild(btn); container.appendChild(card);

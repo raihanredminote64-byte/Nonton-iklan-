@@ -1,7 +1,7 @@
 'use strict';
 
 const { sendJson, handleOptions, getTokenFromReq } = require('../../lib/http');
-const { listUsers, hasCompletedMission } = require('../../lib/db');
+const { listUsers } = require('../../lib/db');
 const { getAuthUser } = require('../../lib/auth');
 
 module.exports = async (req, res) => {
@@ -15,8 +15,8 @@ module.exports = async (req, res) => {
     const user = auth.user;
     const users = await listUsers();
     const mine = users.filter((u) => u.referredBy === user.username);
-    // Referral aktif = yang diundang sudah menyelesaikan minimal 1 misi (VIP dihapus).
-    const active = mine.filter((u) => hasCompletedMission(u)).length;
+    // Referral aktif = yang diundang sudah terverifikasi (pengguna asli).
+    const active = mine.filter((u) => !!u.isVerified).length;
     return sendJson(res, 200, {
       total: mine.length,
       active,

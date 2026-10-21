@@ -40,9 +40,9 @@
         </div>
     </header>
     <div class="admin-view">
-        <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🎁 Pengaturan Reward Iklan</h3><label style="font-size:13px; font-weight:600;">Reward per misi selesai (Rp):</label><input type="number" id="reward-input" min="0" max="1000000" step="1" placeholder="Contoh: 60" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><button class="action-btn" onclick="saveReward()">Simpan Reward</button><p id="reward-status" style="font-size:13px; font-weight:bold; margin-top:8px;"></p></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-filter-verify" onchange="onUserFilterChange()"><option value="all">Verifikasi: Semua</option><option value="verified">Verifikasi: Terverifikasi</option><option value="unverified">Verifikasi: Belum</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🎁 Pengaturan Reward Iklan</h3><label style="font-size:13px; font-weight:600;">Reward per misi selesai (Rp):</label><input type="number" id="reward-input" min="0" max="1000000" step="1" placeholder="Contoh: 60" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><button class="action-btn" onclick="saveReward()">Simpan Reward</button><p id="reward-status" style="font-size:13px; font-weight:bold; margin-top:8px;"></p></div>
         
-        <div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
     </div>
     </div>
@@ -123,11 +123,14 @@
         function getFilteredUsers() {
             const q = (document.getElementById('user-search') ? document.getElementById('user-search').value : '').trim().toLowerCase();
             const blockF = document.getElementById('user-filter-block') ? document.getElementById('user-filter-block').value : 'all';
+            const verifyF = document.getElementById('user-filter-verify') ? document.getElementById('user-filter-verify').value : 'all';
             const sort = document.getElementById('user-sort') ? document.getElementById('user-sort').value : 'newest';
             let list = usersList.filter((u) => {
                 if (q && (u.username || '').toLowerCase().indexOf(q) === -1) return false;
                 if (blockF === 'blocked' && !u.isBlocked) return false;
                 if (blockF === 'open' && u.isBlocked) return false;
+                if (verifyF === 'verified' && !u.isVerified) return false;
+                if (verifyF === 'unverified' && u.isVerified) return false;
                 return true;
             });
             if (sort === 'oldest') list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -142,6 +145,7 @@
         function resetUserFilter() {
             const s = document.getElementById('user-search'); if (s) s.value = '';
             const b = document.getElementById('user-filter-block'); if (b) b.value = 'all';
+            const vf = document.getElementById('user-filter-verify'); if (vf) vf.value = 'all';
             const o = document.getElementById('user-sort'); if (o) o.value = 'newest';
             renderUsersSection();
         }
@@ -152,18 +156,36 @@
             if (countEl) countEl.innerText = 'Menampilkan ' + filtered.length + ' dari ' + usersList.length + ' user';
             usersContainer.innerHTML = filtered.length === 0 ? "<p>Tidak ada user yang cocok dengan pencarian/filter.</p>" : "";
             filtered.forEach((usr) => {
-                const activeRef = usersList.filter(x => x.referredBy === usr.username && (x.missionCompleted || []).some(Boolean)).length;
+                const activeRef = usersList.filter(x => x.referredBy === usr.username && x.isVerified).length;
                 const totalRef = usersList.filter(x => x.referredBy === usr.username).length;
                 usersContainer.innerHTML += `
                     <div class="admin-card" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div><b>${esc(usr.username)}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${(usr.balance || 0).toLocaleString('id-ID')}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${totalRef} total | ${activeRef} aktif | Bonus: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + esc(usr.referredBy) : ''}</span></div>
-                        <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock('${esc(usr.username)}', ${!usr.isBlocked})">${usr.isBlocked?'Buka':'Blokir'}</button>
+                        <div><b>${esc(usr.username)}</b><br><span style="color:${usr.isBlocked?'#ef4444':'#10b981'};">Saldo: Rp ${(usr.balance || 0).toLocaleString('id-ID')} | ${usr.isVerified ? '✅ Terverifikasi' : '❌ Belum Verifikasi'}</span><br><span style="font-size:12px; color:#4b5563;">Referral: ${totalRef} total | ${activeRef} aktif | Bonus: Rp ${(usr.referralEarnings || 0).toLocaleString('id-ID')}${usr.referredBy ? ' | Diundang oleh: ' + esc(usr.referredBy) : ''}</span></div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="action-btn" style="background:${usr.isVerified?'#6b7280':'#10b981'}" onclick="toggleVerify('${esc(usr.username)}', ${!usr.isVerified})">${usr.isVerified?'Cabut Verifikasi':'Verifikasi'}</button>
+                            <button class="action-btn" style="background:${usr.isBlocked?'#10b981':'#ef4444'}" onclick="toggleBlock('${esc(usr.username)}', ${!usr.isBlocked})">${usr.isBlocked?'Buka':'Blokir'}</button>
+                        </div>
                     </div>`;
             });
         }
 
         function renderAdmin() {
             renderUsersSection();
+
+            const verifyContainer = document.getElementById('admin-verify-container');
+            if (verifyContainer) {
+                const withProof = usersList.filter(u => u.verificationProofUrl);
+                verifyContainer.innerHTML = withProof.length === 0 ? "<p>Tidak ada bukti verifikasi.</p>" : "";
+                withProof.forEach(usr => {
+                    verifyContainer.innerHTML += `
+                        <div class="admin-card">
+                            <p><b>User:</b> ${esc(usr.username)} — ${usr.isVerified ? '✅ Terverifikasi' : '❌ Belum Terverifikasi'}</p>
+                            <img src="${esc(usr.verificationProofUrl)}" style="max-width:150px; border-radius:6px; display:block; margin-bottom:8px;">
+                            <a href="${esc(usr.verificationProofUrl)}" download="${esc(usr.verificationProofName || 'bukti-verifikasi')}" class="action-btn" style="text-decoration:none; background:#10b981;">Download</a>
+                            <button class="action-btn" style="background:${usr.isVerified?'#6b7280':'#10b981'}" onclick="toggleVerify('${esc(usr.username)}', ${!usr.isVerified})">${usr.isVerified?'Cabut Verifikasi':'Verifikasi'}</button>
+                        </div>`;
+                });
+            }
 
             const wdContainer = document.getElementById('admin-wd-container');
             const allWd = [];
@@ -187,6 +209,13 @@
                         <button class="action-btn" onclick="saveLink(${i})">Simpan</button>
                     </div>`;
             }
+        }
+
+        async function toggleVerify(username, verified) {
+            try {
+                await api('/api/admin/block', 'POST', { username, verified });
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal mengubah verifikasi.'); }
         }
 
         async function toggleBlock(username, blocked) {

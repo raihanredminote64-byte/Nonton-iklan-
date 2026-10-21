@@ -1,11 +1,10 @@
 'use strict';
 
 const { sendJson, handleOptions, readJson, getTokenFromReq } = require('../../lib/http');
-const { TOTAL_BUTTONS, publicUser, saveUser, getUser, getSettings } = require('../../lib/db');
+const { TOTAL_BUTTONS, publicUser, saveUser, getSettings } = require('../../lib/db');
 const { getAuthUser } = require('../../lib/auth');
 
 const COOLDOWN_MS = 30000;
-const REFERRAL_BONUS = 2000;
 
 module.exports = async (req, res) => {
   if (handleOptions(req, res)) return;
@@ -23,8 +22,11 @@ module.exports = async (req, res) => {
       return sendJson(res, 400, { error: 'missionIndex tidak valid.' });
     }
     if (user.isBlocked) return sendJson(res, 403, { error: 'Akun diblokir.' });
+    if (!user.isVerified) {
+      return sendJson(res, 403, { error: 'Akun belum terverifikasi. Verifikasi dulu (bayar Rp 1.000) untuk membuka misi.' });
+    }
 
-    // Sistem VIP dihapus: semua tombol misi terbuka untuk semua user (kecuali diblokir/cooldown).
+    // Misi terbuka untuk user terverifikasi (kecuali diblokir/cooldown).
     const now = Date.now();
     if (!Array.isArray(user.missionCooldownUntil)) user.missionCooldownUntil = Array(TOTAL_BUTTONS).fill(0);
     if (!Array.isArray(user.missionCompleted)) user.missionCompleted = Array(TOTAL_BUTTONS).fill(false);
@@ -39,20 +41,6 @@ module.exports = async (req, res) => {
     user.balance = (user.balance || 0) + reward;
     user.missionCompleted[missionIndex] = true;
     user.missionCooldownUntil[missionIndex] = now + COOLDOWN_MS;
-
-    // Bonus referral Rp 2000 SEKALI per undangan, saat yang diundang menyelesaikan misi
-    // (pengganti pemicu lama "bayar VIP", karena sistem VIP sudah dihapus).
-    if (user.referredBy && !user.referralBonusPaid) {
-      try {
-        const referrer = await getUser(user.referredBy);
-        if (referrer && !referrer.isBlocked) {
-          referrer.balance = (referrer.balance || 0) + REFERRAL_BONUS;
-          referrer.referralEarnings = (referrer.referralEarnings || 0) + REFERRAL_BONUS;
-          await saveUser(referrer);
-          user.referralBonusPaid = true;
-        }
-      } catch (e) { /* Kegagalan bonus tidak boleh menggagalkan misi user. */ }
-    }
 
     await saveUser(user);
     return sendJson(res, 200, { user: publicUser(user), reward });
