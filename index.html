@@ -164,6 +164,32 @@
         <div class="container" id="button-container"></div>
 
         <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
+            <h3 style="margin-top: 0; font-size: 17px;">🎯 Misi Manual (Klik &amp; Screenshot)</h3>
+            <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Klik tombol misi untuk membuka link, kerjakan misinya, lalu upload screenshot hasilnya — verifikasi <b>otomatis</b>, saldo langsung masuk. Admin mengawasi: pengiriman curang digagalkan dan saldo dipotong balik.</p>
+            <div id="manual-missions-list"></div>
+        </div>
+
+        <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
+            <h3 style="margin-top: 0; font-size: 17px;">➕ Buat Misi Manual</h3>
+            <label style="font-weight: 600; font-size: 13px;">Nama Misi:</label>
+            <input type="text" id="mm-title" placeholder="Contoh: Follow Instagram @tokoku">
+            <label style="font-weight: 600; font-size: 13px;">Deskripsi:</label>
+            <input type="text" id="mm-desc" placeholder="Contoh: Follow akun lalu screenshot profil">
+            <label style="font-weight: 600; font-size: 13px;">Foto Misi (opsional):</label>
+            <input type="file" id="mm-photo" accept="image/*">
+            <label style="font-weight: 600; font-size: 13px;">Link Misi:</label>
+            <input type="text" id="mm-link" placeholder="https://...">
+            <label style="font-weight: 600; font-size: 13px;">Profit Per Misi / Per Klik (Rp):</label>
+            <input type="number" id="mm-reward" placeholder="Contoh: 100" oninput="updateMmPreview()">
+            <label style="font-weight: 600; font-size: 13px;">Total Biaya (Rp) — dipotong dari saldo kamu:</label>
+            <input type="number" id="mm-budget" placeholder="Contoh: 10000" oninput="updateMmPreview()">
+            <p id="mm-preview" style="font-size: 13px; color: #4b5563; font-weight: 600; margin: 10px 0;"></p>
+            <button class="action-btn" onclick="createManualMission()">Buat Misi</button>
+            <div id="my-missions-list" style="margin-top: 14px;"></div>
+        </div>
+
+
+        <div style="width: 100%; max-width: 950px; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 25px; box-sizing: border-box;">
             <h3 style="margin-top: 0; font-size: 17px;">👥 Referral</h3>
             <p style="font-size: 13px; color: #4b5563; margin: 4px 0;">Bagikan link referral-mu. Kamu dapat <b>Rp 500 per undangan</b> yang berhasil verifikasi (bayar Rp 1.000). Bonus hanya sekali per undangan.</p>
             <label style="font-weight: 600; font-size: 13px;">Link Referral Kamu (Telegram Mini App):</label>
@@ -308,11 +334,13 @@
                     const legacy = getLegacyUser(u, p);
                     try {
                         if (legacy) {
-                            const m = await api('/api/migrate', 'POST', { username: u, password: p, legacy });
-                            setSession(m.token, m.user.username);
-                            activeUser = m.user;
-                            loadAppUI();
-                            return;
+                            try {
+                                const m = await api('/api/migrate', 'POST', { username: u, password: p, legacy });
+                                setSession(m.token, m.user.username);
+                                activeUser = m.user;
+                                loadAppUI();
+                                return;
+                            } catch (em) { /* migrasi tidak tersedia: lanjut daftar baru */ }
                         }
                         const refCode = getReferralCodeFromUrl().trim();
                         const r = await api('/api/auth/register', 'POST', { username: u, password: p, refCode });
@@ -339,6 +367,7 @@
             document.getElementById('main-app').style.display = 'flex';
             document.getElementById('display-username').innerText = `Akun: ${activeUser.username}`;
             renderUserMissions();
+            loadManualMissions();
         }
 
         function showInfoPopup(title, message, isSuccess) {
@@ -438,6 +467,158 @@
                 img.src = e.target.result;
             };
             reader.readAsDataURL(fileInput.files[0]);
+        }
+
+
+        function escHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function compressImageFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const scale = 400 / img.width;
+                        canvas.width = 400; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        let manualState = { missions: [], myMissions: [], mySubmissions: {}, feePercent: 5 };
+        async function loadManualMissions() {
+            try {
+                manualState = await api('/api/missions', 'GET');
+                renderManualMissions();
+                renderMyMissions();
+                updateMmPreview();
+            } catch (e) { /* abaikan */ }
+        }
+
+        function renderManualMissions() {
+            const el = document.getElementById('manual-missions-list');
+            if (!el) return;
+            if (!manualState.missions || manualState.missions.length === 0) {
+                el.innerHTML = '<p style="font-size:13px; color:#6b7280;">Belum ada misi manual yang aktif.</p>';
+                return;
+            }
+            el.innerHTML = '';
+            manualState.missions.forEach(m => {
+                const myStatus = manualState.mySubmissions ? manualState.mySubmissions[m.id] : null;
+                const isMine = m.creator === (activeUser && activeUser.username);
+                const card = document.createElement('div');
+                card.className = 'ad-card';
+                card.style.textAlign = 'left';
+                let statusHtml = '';
+                if (isMine) statusHtml = '<p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;">Misi buatan kamu sendiri.</p>';
+                else if (myStatus === 'approved') statusHtml = '<p style="font-size:12px; color:#10b981; font-weight:bold; margin:6px 0 0 0;">✅ Selesai — reward sudah masuk.</p>';
+                else if (myStatus === 'rejected') statusHtml = '<p style="font-size:12px; color:#ef4444; font-weight:bold; margin:6px 0 0 0;">❌ Ditolak admin (curang) — reward dipotong.</p>';
+                card.innerHTML =
+                    (m.photoUrl ? '<img src="' + escHtml(m.photoUrl) + '" style="width:100%; border-radius:8px; margin-bottom:8px;">' : '') +
+                    '<div style="font-weight:700;">' + escHtml(m.title) + '</div>' +
+                    '<div style="font-size:13px; color:#4b5563;">' + escHtml(m.description || '') + '</div>' +
+                    '<div style="color:#10b981; font-size:13px; font-weight:bold;">+Rp ' + (m.reward || 0).toLocaleString('id-ID') + ' &bull; Sisa klik: ' + m.clicksLeft + '/' + m.clicksTotal + '</div>' +
+                    '<div style="font-size:12px; color:#6b7280;">Dari: ' + (m.isOfficial ? '⭐ RESMI (Admin)' : escHtml(m.creator)) + '</div>' +
+                    statusHtml;
+                if (!isMine && !myStatus) {
+                    const openBtn = document.createElement('button');
+                    openBtn.className = 'ad-button';
+                    openBtn.innerText = 'Kerjakan Misi';
+                    openBtn.onclick = () => window.open(m.link, '_blank');
+                    card.appendChild(openBtn);
+                    const label = document.createElement('label');
+                    label.style.cssText = 'font-size:12px; font-weight:bold; display:block; margin-top:8px;';
+                    label.innerText = 'Upload Screenshot Hasil:';
+                    card.appendChild(label);
+                    const file = document.createElement('input');
+                    file.type = 'file'; file.accept = 'image/*'; file.id = 'mm-file-' + m.id;
+                    card.appendChild(file);
+                    const sendBtn = document.createElement('button');
+                    sendBtn.className = 'ad-button';
+                    sendBtn.style.background = '#10b981';
+                    sendBtn.innerText = 'Kirim & Klaim';
+                    sendBtn.onclick = () => submitManualMission(m.id);
+                    card.appendChild(sendBtn);
+                }
+                el.appendChild(card);
+            });
+        }
+
+        function renderMyMissions() {
+            const el = document.getElementById('my-missions-list');
+            if (!el) return;
+            const mine = manualState.myMissions || [];
+            if (mine.length === 0) { el.innerHTML = ''; return; }
+            let html = '<h4 style="margin: 0 0 8px 0; font-size: 14px;">Misi Buatan Kamu:</h4>';
+            mine.forEach(m => {
+                html += '<p style="font-size:13px; margin:4px 0;">• <b>' + escHtml(m.title) + '</b> — +Rp ' + (m.reward || 0).toLocaleString('id-ID') + '/klik, sisa ' + m.clicksLeft + '/' + m.clicksTotal + ' (' + escHtml(m.status) + ')</p>';
+            });
+            el.innerHTML = html;
+        }
+
+        async function submitManualMission(id) {
+            const fileInput = document.getElementById('mm-file-' + id);
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) { alert('Pilih screenshot hasil dulu!'); return; }
+            try {
+                const proofUrl = await compressImageFile(fileInput.files[0]);
+                const data = await api('/api/missions', 'POST', { action: 'submit', missionId: id, proofName: fileInput.files[0].name, proofUrl });
+                activeUser = data.user;
+                showInfoPopup('Berhasil!', 'Misi terverifikasi otomatis! +Rp ' + (data.submission.reward || 0).toLocaleString('id-ID') + ' masuk ke saldo.', true);
+                renderUserMissions();
+                loadManualMissions();
+            } catch (err) {
+                showInfoPopup('Gagal', err.message || 'Gagal mengirim misi.', false);
+            }
+        }
+
+        function updateMmPreview() {
+            const el = document.getElementById('mm-preview');
+            if (!el) return;
+            const reward = parseInt((document.getElementById('mm-reward') || {}).value, 10) || 0;
+            const budget = parseInt((document.getElementById('mm-budget') || {}).value, 10) || 0;
+            if (reward < 1 || budget < 1) { el.innerText = 'Isi profit per misi dan total biaya untuk melihat estimasi klik.'; return; }
+            const fee = Math.floor(budget * 0.05);
+            const net = budget - fee;
+            const clicks = Math.floor(net / reward);
+            if (clicks < 1) { el.innerText = 'Budget terlalu kecil: setelah biaya 5%, tidak cukup untuk 1 klik. Naikkan total biaya atau turunkan profit.'; return; }
+            el.innerText = 'Biaya platform 5%: Rp ' + fee.toLocaleString('id-ID') + ' • Budget bersih: Rp ' + net.toLocaleString('id-ID') + ' • Estimasi klik: ' + clicks + ' klik • Saldo kamu: Rp ' + ((activeUser && activeUser.balance) || 0).toLocaleString('id-ID');
+        }
+
+        async function createManualMission() {
+            const title = document.getElementById('mm-title').value.trim();
+            const description = document.getElementById('mm-desc').value.trim();
+            const link = document.getElementById('mm-link').value.trim();
+            const reward = parseInt(document.getElementById('mm-reward').value, 10);
+            const budget = parseInt(document.getElementById('mm-budget').value, 10);
+            if (!title || !link || !reward || !budget) { alert('Nama, link, profit, dan total biaya wajib diisi!'); return; }
+            try {
+                let photoUrl = null;
+                const photoInput = document.getElementById('mm-photo');
+                if (photoInput && photoInput.files && photoInput.files.length > 0) {
+                    photoUrl = await compressImageFile(photoInput.files[0]);
+                }
+                const data = await api('/api/missions', 'POST', { action: 'create', title, description, photoUrl, link, reward, budget });
+                activeUser = data.user;
+                showInfoPopup('Misi Dibuat!', 'Misi "' + data.mission.title + '" aktif dengan ' + data.mission.clicksTotal + ' klik (biaya platform Rp ' + data.mission.fee.toLocaleString('id-ID') + '). Saldo kamu sekarang Rp ' + (activeUser.balance || 0).toLocaleString('id-ID') + '.', true);
+                document.getElementById('mm-title').value = '';
+                document.getElementById('mm-desc').value = '';
+                document.getElementById('mm-link').value = '';
+                document.getElementById('mm-reward').value = '';
+                document.getElementById('mm-budget').value = '';
+                renderUserMissions();
+                loadManualMissions();
+            } catch (err) {
+                showInfoPopup('Gagal', err.message || 'Gagal membuat misi.', false);
+            }
         }
 
         async function renderUserMissions() {

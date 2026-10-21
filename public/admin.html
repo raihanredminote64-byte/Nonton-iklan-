@@ -42,7 +42,7 @@
     <div class="admin-view">
         <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-filter-verify" onchange="onUserFilterChange()"><option value="all">Verifikasi: Semua</option><option value="verified">Verifikasi: Terverifikasi</option><option value="unverified">Verifikasi: Belum</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🎁 Pengaturan Reward Iklan</h3><label style="font-size:13px; font-weight:600;">Reward per misi selesai (Rp):</label><input type="number" id="reward-input" min="0" max="1000000" step="1" placeholder="Contoh: 60" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><button class="action-btn" onclick="saveReward()">Simpan Reward</button><p id="reward-status" style="font-size:13px; font-weight:bold; margin-top:8px;"></p></div>
         
-        <div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">🎯 Buat Misi Manual Resmi</h3><label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="am-title" placeholder="Contoh: Join grup Telegram" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="am-desc" placeholder="Contoh: Join grup lalu screenshot" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Foto Misi (opsional):</label><input type="file" id="am-photo" accept="image/*" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="am-link" placeholder="https://..." style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="am-reward" placeholder="Contoh: 100" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="am-budget" placeholder="Contoh: 10000" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><p id="am-preview" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p><button class="action-btn" onclick="createAdminMission()">Buat Misi Resmi</button></div><div class="admin-section-box"><h3 style="margin-top:0;">📋 Semua Misi Manual</h3><div id="admin-missions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🕵️ Pengawasan Misi Manual</h3><div id="admin-submissions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
     </div>
     </div>
@@ -107,6 +107,7 @@
                     const sRes = await api('/api/admin/settings', 'GET');
                     const ri = document.getElementById('reward-input');
                     if (ri && sRes && Number.isInteger(sRes.missionReward)) ri.value = sRes.missionReward;
+                    if (sRes) { renderAdminMissions(sRes.missions || []); renderAdminSubmissions(sRes.submissions || []); }
                 } catch (e) {}
                 if (Array.isArray(linksRes.links) && linksRes.links.length === totalButtons) missionLinks = linksRes.links;
                 renderAdmin();
@@ -243,6 +244,95 @@
                 await api('/api/admin/withdraw', 'POST', { username, withdrawId, status });
                 await loadAdminData();
             } catch (e) { alert(e.message || 'Gagal memproses withdraw.'); }
+        }
+
+
+        function compressImageFileAdmin(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const scale = 400 / img.width;
+                        canvas.width = 400; canvas.height = img.height * scale;
+                        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updateAmPreview() {
+            const el = document.getElementById('am-preview');
+            if (!el) return;
+            const reward = parseInt((document.getElementById('am-reward') || {}).value, 10) || 0;
+            const budget = parseInt((document.getElementById('am-budget') || {}).value, 10) || 0;
+            if (reward < 1 || budget < 1) { el.innerText = 'Isi profit dan total biaya untuk melihat estimasi klik.'; return; }
+            const fee = Math.floor(budget * 0.05);
+            const clicks = Math.floor((budget - fee) / reward);
+            el.innerText = clicks < 1 ? 'Budget terlalu kecil untuk 1 klik setelah biaya 5%.' :
+                'Biaya platform 5%: Rp ' + fee.toLocaleString('id-ID') + ' • Estimasi klik: ' + clicks + ' klik';
+        }
+
+        async function createAdminMission() {
+            const title = document.getElementById('am-title').value.trim();
+            const description = document.getElementById('am-desc').value.trim();
+            const link = document.getElementById('am-link').value.trim();
+            const reward = parseInt(document.getElementById('am-reward').value, 10);
+            const budget = parseInt(document.getElementById('am-budget').value, 10);
+            if (!title || !link || !reward || !budget) { alert('Nama, link, profit, dan total biaya wajib diisi!'); return; }
+            try {
+                let photoUrl = null;
+                const photoInput = document.getElementById('am-photo');
+                if (photoInput && photoInput.files && photoInput.files.length > 0) {
+                    photoUrl = await compressImageFileAdmin(photoInput.files[0]);
+                }
+                const data = await api('/api/admin/settings', 'POST', { action: 'createMission', title, description, photoUrl, link, reward, budget });
+                alert('Misi resmi dibuat: ' + data.mission.clicksTotal + ' klik.');
+                document.getElementById('am-title').value = '';
+                document.getElementById('am-desc').value = '';
+                document.getElementById('am-link').value = '';
+                document.getElementById('am-reward').value = '';
+                document.getElementById('am-budget').value = '';
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal membuat misi.'); }
+        }
+
+        function renderAdminMissions(missions) {
+            const c = document.getElementById('admin-missions-container');
+            if (!c) return;
+            if (!missions || missions.length === 0) { c.innerHTML = '<p>Belum ada misi manual.</p>'; return; }
+            c.innerHTML = '';
+            missions.forEach(m => {
+                c.innerHTML += '<div class="admin-card"><p style="margin:0;"><b>' + esc(m.title) + '</b> ' + (m.isOfficial ? '(⭐ RESMI)' : '(user: ' + esc(m.creator) + ')') + '<br><span style="font-size:13px; color:#4b5563;">+Rp ' + (m.reward || 0).toLocaleString('id-ID') + '/klik • Sisa ' + m.clicksLeft + '/' + m.clicksTotal + ' • Status: ' + esc(m.status) + ' • Budget Rp ' + (m.budgetTotal || 0).toLocaleString('id-ID') + ' (fee Rp ' + (m.fee || 0).toLocaleString('id-ID') + ')</span></p></div>';
+            });
+        }
+
+        function renderAdminSubmissions(subs) {
+            const c = document.getElementById('admin-submissions-container');
+            if (!c) return;
+            if (!subs || subs.length === 0) { c.innerHTML = '<p>Belum ada pengiriman misi manual.</p>'; return; }
+            c.innerHTML = '';
+            subs.forEach(s => {
+                c.innerHTML += '<div class="admin-card"><p><b>User:</b> ' + esc(s.username) + ' — <b>Misi:</b> ' + esc(s.missionTitle || s.missionId) + ' — <b>Reward:</b> Rp ' + (s.reward || 0).toLocaleString('id-ID') + ' — ' + (s.status === 'approved' ? '✅ Disetujui (otomatis)' : '❌ Digagalkan') + '</p>' +
+                    (s.proofUrl ? '<img src="' + esc(s.proofUrl) + '" style="max-width:150px; border-radius:6px; display:block; margin-bottom:8px;"><a href="' + esc(s.proofUrl) + '" download="' + esc(s.proofName || 'bukti-misi') + '" class="action-btn" style="text-decoration:none; background:#10b981;">Download</a> ' : '') +
+                    (s.status === 'approved' ? '<button class="action-btn" style="background:#ef4444;" onclick="rejectSubmission(\'' + s.id + '\')">Gagalkan (Potong Saldo)</button>' : '') +
+                    '</div>';
+            });
+        }
+
+        async function rejectSubmission(id) {
+            if (!confirm('Gagalkan pengiriman ini? Reward akan dipotong balik dari saldo user.')) return;
+            try {
+                const data = await api('/api/admin/settings', 'POST', { action: 'rejectSubmission', submissionId: id });
+                alert('Pengiriman digagalkan. Saldo user dipotong Rp ' + (data.deducted || 0).toLocaleString('id-ID') + '.');
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal menggagalkan.'); }
         }
 
         async function saveReward() {
