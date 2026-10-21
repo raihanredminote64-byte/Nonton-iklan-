@@ -192,7 +192,7 @@
         let missionReward = 60;
         async function fetchSettings() {
             try {
-                const s = await api('/api/settings', 'GET');
+                const s = await api('/api/me', 'GET');
                 if (s && Number.isInteger(s.missionReward)) missionReward = s.missionReward;
             } catch (e) {}
             return missionReward;
