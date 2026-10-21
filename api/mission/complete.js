@@ -42,6 +42,22 @@ module.exports = async (req, res) => {
     user.missionCompleted[missionIndex] = true;
     user.missionCooldownUntil[missionIndex] = now + COOLDOWN_MS;
 
+    // Catat aktivitas klik iklan untuk pemantauan admin (total, per tombol, per jam WIB).
+    if (!user.adStats || typeof user.adStats !== 'object') {
+      user.adStats = { total: 0, byButton: Array(TOTAL_BUTTONS).fill(0), hours: Array(24).fill(0), lastAt: null };
+    }
+    if (!Array.isArray(user.adStats.byButton) || user.adStats.byButton.length !== TOTAL_BUTTONS) {
+      user.adStats.byButton = Array(TOTAL_BUTTONS).fill(0);
+    }
+    if (!Array.isArray(user.adStats.hours) || user.adStats.hours.length !== 24) {
+      user.adStats.hours = Array(24).fill(0);
+    }
+    user.adStats.total = (user.adStats.total || 0) + 1;
+    user.adStats.byButton[missionIndex] = (user.adStats.byButton[missionIndex] || 0) + 1;
+    user.adStats.hours[new Date(now + 7 * 3600 * 1000).getUTCHours()] += 1;
+    user.adStats.lastAt = now;
+    user.lastActiveAt = now;
+
     await saveUser(user);
     return sendJson(res, 200, { user: publicUser(user), reward });
   } catch (e) {

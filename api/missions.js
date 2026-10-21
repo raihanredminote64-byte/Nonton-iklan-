@@ -151,6 +151,7 @@ module.exports = async (req, res) => {
         }
         // Verifikasi OTOMATIS: langsung disetujui & dibayar dari budget misi.
         user.balance = (user.balance || 0) + mission.reward;
+        user.lastActiveAt = Date.now();
         mission.clicksLeft -= 1;
         if (mission.clicksLeft <= 0) mission.status = 'habis';
         const submission = {
