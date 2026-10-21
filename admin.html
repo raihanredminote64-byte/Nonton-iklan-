@@ -42,7 +42,7 @@
     <div class="admin-view">
         <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-filter-verify" onchange="onUserFilterChange()"><option value="all">Verifikasi: Semua</option><option value="verified">Verifikasi: Terverifikasi</option><option value="unverified">Verifikasi: Belum</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🎁 Pengaturan Reward Iklan</h3><label style="font-size:13px; font-weight:600;">Reward per misi selesai (Rp):</label><input type="number" id="reward-input" min="0" max="1000000" step="1" placeholder="Contoh: 60" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><button class="action-btn" onclick="saveReward()">Simpan Reward</button><p id="reward-status" style="font-size:13px; font-weight:bold; margin-top:8px;"></p></div>
         
-        <div class="admin-section-box"><h3 style="margin-top:0;">🎯 Buat Misi Manual Resmi</h3><label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="am-title" placeholder="Contoh: Join grup Telegram" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="am-desc" placeholder="Contoh: Join grup lalu screenshot" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Foto Misi (opsional):</label><input type="file" id="am-photo" accept="image/*" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="am-link" placeholder="https://..." style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="am-reward" placeholder="Contoh: 100" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="am-budget" placeholder="Contoh: 10000" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><p id="am-preview" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p><button class="action-btn" onclick="createAdminMission()">Buat Misi Resmi</button></div><div class="admin-section-box"><h3 style="margin-top:0;">📋 Semua Misi Manual</h3><div id="admin-missions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🕵️ Pengawasan Misi Manual</h3><div id="admin-submissions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">🎯 Buat Misi Manual Resmi</h3><label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="am-title" placeholder="Contoh: Join grup Telegram" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="am-desc" placeholder="Contoh: Join grup lalu screenshot" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Foto Misi (opsional):</label><input type="file" id="am-photo" accept="image/*" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="am-link" placeholder="https://..." style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="am-reward" placeholder="Contoh: 100" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="am-budget" placeholder="Contoh: 10000" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><p id="am-preview" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p><button class="action-btn" onclick="createAdminMission()">Buat Misi Resmi</button></div><div class="admin-section-box"><h3 style="margin-top:0;">📋 Semua Misi Manual</h3><div id="admin-missions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🕵️ Pengawasan Misi Manual</h3><div id="admin-submissions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">📊 Grafik Pemantauan Misi</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Jumlah klik dan jam klik (WIB) per misi manual. Klik = pengiriman yang disetujui.</p><div id="admin-mission-stats"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
     </div>
     </div>
@@ -107,7 +107,7 @@
                     const sRes = await api('/api/admin/settings', 'GET');
                     const ri = document.getElementById('reward-input');
                     if (ri && sRes && Number.isInteger(sRes.missionReward)) ri.value = sRes.missionReward;
-                    if (sRes) { renderAdminMissions(sRes.missions || []); renderAdminSubmissions(sRes.submissions || []); }
+                    if (sRes) { renderAdminMissions(sRes.missions || []); renderAdminSubmissions(sRes.submissions || []); renderMissionStats(sRes.missions || [], sRes.submissions || []); }
                 } catch (e) {}
                 if (Array.isArray(linksRes.links) && linksRes.links.length === totalButtons) missionLinks = linksRes.links;
                 renderAdmin();
@@ -333,6 +333,40 @@
                 alert('Pengiriman digagalkan. Saldo user dipotong Rp ' + (data.deducted || 0).toLocaleString('id-ID') + '.');
                 await loadAdminData();
             } catch (e) { alert(e.message || 'Gagal menggagalkan.'); }
+        }
+
+
+        function hourChartHtml(hours, heightPx) {
+            const max = Math.max.apply(null, hours.concat([1]));
+            let cols = '';
+            for (let h = 0; h < 24; h++) {
+                const c = hours[h] || 0;
+                const bh = Math.max(2, Math.round((c / max) * heightPx));
+                cols += '<div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; min-width:0;" title="Jam ' + String(h).padStart(2, '0') + ':00 WIB — ' + c + ' klik">' +
+                    '<div style="font-size:9px; color:#374151;">' + (c > 0 ? c : '') + '</div>' +
+                    '<div style="width:80%; height:' + bh + 'px; background:' + (c > 0 ? '#3b82f6' : '#e5e7eb') + '; border-radius:2px 2px 0 0;"></div>' +
+                    '<div style="font-size:8px; color:#6b7280;">' + (h % 3 === 0 ? String(h).padStart(2, '0') : '') + '</div></div>';
+            }
+            return '<div style="display:flex; align-items:flex-end; gap:2px; border-bottom:1px solid #d1d5db; padding-top:4px;">' + cols + '</div>';
+        }
+
+        function renderMissionStats(missions, submissions) {
+            const c = document.getElementById('admin-mission-stats');
+            if (!c) return;
+            if (!missions || missions.length === 0) { c.innerHTML = '<p>Belum ada misi manual.</p>'; return; }
+            c.innerHTML = '';
+            missions.forEach(m => {
+                const subs = (submissions || []).filter(s => s.missionId === m.id);
+                const approved = subs.filter(s => s.status === 'approved');
+                const rejected = subs.filter(s => s.status === 'rejected');
+                const hours = Array(24).fill(0);
+                approved.forEach(s => { hours[new Date((s.createdAt || 0) + 7 * 3600 * 1000).getUTCHours()] += 1; });
+                const peak = hours.indexOf(Math.max.apply(null, hours));
+                c.innerHTML += '<div class="admin-card"><p style="margin:0 0 4px 0;"><b>' + esc(m.title) + '</b> ' + (m.isOfficial ? '(⭐ RESMI)' : '(user: ' + esc(m.creator) + ')') + '</p>' +
+                    '<p style="font-size:13px; color:#4b5563; margin:0 0 6px 0;">Total klik: <b>' + approved.length + '</b> • Digagalkan: <b>' + rejected.length + '</b> • Sisa klik: <b>' + m.clicksLeft + '/' + m.clicksTotal + '</b>' + (approved.length ? ' • Jam tersibuk: <b>' + String(peak).padStart(2, '0') + ':00 WIB</b>' : '') + '</p>' +
+                    (approved.length ? hourChartHtml(hours, 80) : '<p style="font-size:12px; color:#9ca3af; margin:0;">Belum ada klik.</p>') +
+                    '</div>';
+            });
         }
 
         async function saveReward() {

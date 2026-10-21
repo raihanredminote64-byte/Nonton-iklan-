@@ -80,7 +80,16 @@ module.exports = async (req, res) => {
       submissions.forEach((s) => {
         if (s.username === user.username) mySubmissions[s.missionId] = s.status;
       });
-      return sendJson(res, 200, { missions: active, myMissions, mySubmissions, feePercent: MISSION_FEE_PERCENT });
+      // Statistik pemantauan untuk misi buatan sendiri: jumlah klik per jam (WIB).
+      const myMissionHours = {};
+      myMissions.forEach((m) => { myMissionHours[m.id] = Array(24).fill(0); });
+      submissions.forEach((s) => {
+        if (s.status === 'approved' && myMissionHours[s.missionId]) {
+          const hourWib = new Date((s.createdAt || 0) + 7 * 3600 * 1000).getUTCHours();
+          myMissionHours[s.missionId][hourWib] += 1;
+        }
+      });
+      return sendJson(res, 200, { missions: active, myMissions, mySubmissions, myMissionHours, feePercent: MISSION_FEE_PERCENT });
     }
 
     if (req.method === 'POST') {

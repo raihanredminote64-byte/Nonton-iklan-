@@ -553,6 +553,21 @@
             });
         }
 
+
+        function hourChartHtml(hours, heightPx) {
+            const max = Math.max.apply(null, hours.concat([1]));
+            let cols = '';
+            for (let h = 0; h < 24; h++) {
+                const c = hours[h] || 0;
+                const bh = Math.max(2, Math.round((c / max) * heightPx));
+                cols += '<div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; min-width:0;" title="Jam ' + String(h).padStart(2, '0') + ':00 WIB — ' + c + ' klik">' +
+                    '<div style="font-size:9px; color:#374151;">' + (c > 0 ? c : '') + '</div>' +
+                    '<div style="width:80%; height:' + bh + 'px; background:' + (c > 0 ? '#3b82f6' : '#e5e7eb') + '; border-radius:2px 2px 0 0;"></div>' +
+                    '<div style="font-size:8px; color:#6b7280;">' + (h % 3 === 0 ? String(h).padStart(2, '0') : '') + '</div></div>';
+            }
+            return '<div style="display:flex; align-items:flex-end; gap:2px; border-bottom:1px solid #d1d5db; padding-top:4px;">' + cols + '</div>';
+        }
+
         function renderMyMissions() {
             const el = document.getElementById('my-missions-list');
             if (!el) return;
@@ -561,6 +576,11 @@
             let html = '<h4 style="margin: 0 0 8px 0; font-size: 14px;">Misi Buatan Kamu:</h4>';
             mine.forEach(m => {
                 html += '<p style="font-size:13px; margin:4px 0;">• <b>' + escHtml(m.title) + '</b> — +Rp ' + (m.reward || 0).toLocaleString('id-ID') + '/klik, sisa ' + m.clicksLeft + '/' + m.clicksTotal + ' (' + escHtml(m.status) + ')</p>';
+                const hours = (manualState.myMissionHours || {})[m.id];
+                if (hours) {
+                    const used = (m.clicksTotal || 0) - (m.clicksLeft || 0);
+                    html += '<p style="font-size:12px; color:#4b5563; margin:2px 0;">📊 Klik masuk: <b>' + used + '</b> — grafik jam klik (WIB):</p>' + hourChartHtml(hours, 50);
+                }
             });
             el.innerHTML = html;
         }
