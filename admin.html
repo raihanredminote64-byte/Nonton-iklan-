@@ -42,13 +42,14 @@
     <div class="admin-view">
         <div class="admin-section-box"><h3 style="margin-top:0;">👥 Daftar Akun</h3><div class="user-filter-bar"><input type="text" id="user-search" placeholder="🔍 Cari username..." oninput="onUserFilterChange()"><select id="user-filter-block" onchange="onUserFilterChange()"><option value="all">Blokir: Semua</option><option value="blocked">Blokir: Diblokir</option><option value="open">Blokir: Tidak Diblokir</option></select><select id="user-filter-verify" onchange="onUserFilterChange()"><option value="all">Verifikasi: Semua</option><option value="verified">Verifikasi: Terverifikasi</option><option value="unverified">Verifikasi: Belum</option></select><select id="user-sort" onchange="onUserFilterChange()"><option value="newest">Urut: Terbaru</option><option value="oldest">Urut: Terlama</option><option value="balance-desc">Urut: Saldo Tertinggi</option><option value="balance-asc">Urut: Saldo Terendah</option><option value="name-asc">Urut: Username A-Z</option><option value="name-desc">Urut: Username Z-A</option></select><button class="action-btn" style="background:#6b7280;" onclick="resetUserFilter()">Reset</button></div><p id="user-count" style="font-size:13px; color:#4b5563; margin:0 0 10px 0;"></p><div id="admin-users-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🎁 Pengaturan Reward Iklan</h3><label style="font-size:13px; font-weight:600;">Reward per misi selesai (Rp):</label><input type="number" id="reward-input" min="0" max="1000000" step="1" placeholder="Contoh: 60" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><button class="action-btn" onclick="saveReward()">Simpan Reward</button><p id="reward-status" style="font-size:13px; font-weight:bold; margin-top:8px;"></p></div>
         
-        <div class="admin-section-box"><h3 style="margin-top:0;">🎯 Buat Misi Manual Resmi</h3><label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="am-title" placeholder="Contoh: Join grup Telegram" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="am-desc" placeholder="Contoh: Join grup lalu screenshot" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Foto Misi (opsional):</label><input type="file" id="am-photo" accept="image/*" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="am-link" placeholder="https://..." style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="am-reward" placeholder="Contoh: 100" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="am-budget" placeholder="Contoh: 10000" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><p id="am-preview" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p><button class="action-btn" onclick="createAdminMission()">Buat Misi Resmi</button></div><div class="admin-section-box"><h3 style="margin-top:0;">📋 Semua Misi Manual</h3><div id="admin-missions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🕵️ Pengawasan Misi Manual</h3><div id="admin-submissions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">📊 Grafik Pemantauan Misi</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Jumlah klik dan jam klik (WIB) per misi manual. Klik = pengiriman yang disetujui.</p><div id="admin-mission-stats"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">📈 Aktivitas Member</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Seberapa aktif tiap member mengklik tombol lihat iklan dan tombol misi — lengkap dengan grafik jam aktivitas per user (WIB). Klik iklan mulai dihitung sejak fitur ini dipasang.</p><div class="user-filter-bar"><select id="activity-sort" onchange="renderMemberActivity()"><option value="aktif">Urut: Paling Aktif</option><option value="terakhir">Urut: Terakhir Aktif</option><option value="nama">Urut: Username A-Z</option></select></div><div id="admin-activity-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
+        <div class="admin-section-box"><h3 style="margin-top:0;">🎯 Buat Misi Manual Resmi</h3><label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="am-title" placeholder="Contoh: Join grup Telegram" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="am-desc" placeholder="Contoh: Join grup lalu screenshot" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Foto Misi (opsional):</label><input type="file" id="am-photo" accept="image/*" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="am-link" placeholder="https://..." style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="am-reward" placeholder="Contoh: 100" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="am-budget" placeholder="Contoh: 10000" oninput="updateAmPreview()" style="width:100%; padding:10px; margin:6px 0 10px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;"><p id="am-preview" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p><button class="action-btn" onclick="createAdminMission()">Buat Misi Resmi</button></div><div class="admin-section-box"><h3 style="margin-top:0;">📋 Semua Misi Manual</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Atur Ulang untuk mengubah misi, Reset Klik untuk memulihkan slot klik, atau Hapus untuk menghapus misi.</p><div id="admin-missions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🕵️ Pengawasan Misi Manual</h3><div id="admin-submissions-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">📊 Grafik Pemantauan Misi</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Jumlah klik dan jam klik (WIB) per misi manual. Klik = pengiriman yang disetujui.</p><div id="admin-mission-stats"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">📈 Aktivitas Member</h3><p style="font-size:13px; color:#4b5563; margin-top:0;">Seberapa aktif tiap member mengklik tombol lihat iklan dan tombol misi — lengkap dengan grafik jam aktivitas per user (WIB). Klik iklan mulai dihitung sejak fitur ini dipasang.</p><div class="user-filter-bar"><select id="activity-sort" onchange="renderMemberActivity()"><option value="aktif">Urut: Paling Aktif</option><option value="terakhir">Urut: Terakhir Aktif</option><option value="nama">Urut: Username A-Z</option></select></div><div id="admin-activity-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">🛡️ Bukti Verifikasi</h3><div id="admin-verify-container"></div></div><div class="admin-section-box"><h3 style="margin-top:0;">💸 Withdraw</h3><div id="admin-wd-container"></div></div>
         <div class="admin-section-box"><h3 style="margin-top:0;">🔗 Kontrol Link Tombol</h3><div id="admin-links-container"></div></div>
     </div>
     </div>
     <script>
         const totalButtons = 10;
         let usersList = [];
+        let adminMissionsCache = [];
         let missionLinks = Array(totalButtons).fill("https://sfl.gl/gMmpBje");
 
         function getToken() { try { return localStorage.getItem('nonton_token') || ''; } catch (e) { return ''; } }
@@ -307,11 +308,101 @@
         function renderAdminMissions(missions) {
             const c = document.getElementById('admin-missions-container');
             if (!c) return;
+            adminMissionsCache = missions || [];
             if (!missions || missions.length === 0) { c.innerHTML = '<p>Belum ada misi manual.</p>'; return; }
             c.innerHTML = '';
+            const inputStyle = 'width:100%; padding:8px; margin:4px 0 8px 0; box-sizing:border-box; border:1px solid #d1d5db; border-radius:8px;';
             missions.forEach(m => {
-                c.innerHTML += '<div class="admin-card"><p style="margin:0;"><b>' + esc(m.title) + '</b> ' + (m.isOfficial ? '(⭐ RESMI)' : '(user: ' + esc(m.creator) + ')') + '<br><span style="font-size:13px; color:#4b5563;">+Rp ' + (m.reward || 0).toLocaleString('id-ID') + '/klik • Sisa ' + m.clicksLeft + '/' + m.clicksTotal + ' • Status: ' + esc(m.status) + ' • Budget Rp ' + (m.budgetTotal || 0).toLocaleString('id-ID') + ' (fee Rp ' + (m.fee || 0).toLocaleString('id-ID') + ')</span></p></div>';
+                c.innerHTML += '<div class="admin-card"><p style="margin:0;"><b>' + esc(m.title) + '</b> ' + (m.isOfficial ? '(⭐ RESMI)' : '(user: ' + esc(m.creator) + ')') + '<br><span style="font-size:13px; color:#4b5563;">+Rp ' + (m.reward || 0).toLocaleString('id-ID') + '/klik • Sisa ' + m.clicksLeft + '/' + m.clicksTotal + ' • Status: ' + esc(m.status) + ' • Budget Rp ' + (m.budgetTotal || 0).toLocaleString('id-ID') + ' (fee Rp ' + (m.fee || 0).toLocaleString('id-ID') + ')</span><br><span style="font-size:12px; color:#6b7280;">Link: ' + esc(m.link) + '</span></p>' +
+                    '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">' +
+                    '<button class="action-btn" style="background:#3b82f6;" onclick="toggleMissionEdit(\'' + m.id + '\')">Atur Ulang</button>' +
+                    '<button class="action-btn" style="background:#f59e0b;" onclick="resetMissionClicks(\'' + m.id + '\')">Reset Klik</button>' +
+                    '<button class="action-btn" style="background:#ef4444;" onclick="deleteAdminMission(\'' + m.id + '\')">Hapus</button>' +
+                    '</div>' +
+                    '<div id="mission-edit-' + m.id + '" style="display:none; margin-top:12px; border-top:1px solid #e5e7eb; padding-top:10px;">' +
+                    '<label style="font-size:13px; font-weight:600;">Nama Misi:</label><input type="text" id="edit-title-' + m.id + '" value="' + esc(m.title) + '" style="' + inputStyle + '">' +
+                    '<label style="font-size:13px; font-weight:600;">Deskripsi:</label><input type="text" id="edit-desc-' + m.id + '" value="' + esc(m.description || '') + '" style="' + inputStyle + '">' +
+                    (m.photoUrl ? '<img src="' + esc(m.photoUrl) + '" style="max-width:150px; border-radius:6px; display:block; margin-bottom:6px;">' : '') +
+                    '<label style="font-size:13px; font-weight:600;">Ganti Foto (opsional):</label><input type="file" id="edit-photo-' + m.id + '" accept="image/*" style="' + inputStyle + '">' +
+                    '<label style="font-size:13px; font-weight:600;">Link Misi:</label><input type="text" id="edit-link-' + m.id + '" value="' + esc(m.link) + '" style="' + inputStyle + '">' +
+                    '<label style="font-size:13px; font-weight:600;">Profit Per Klik (Rp):</label><input type="number" id="edit-reward-' + m.id + '" value="' + (m.reward || 0) + '" oninput="updateMissionEditPreview(\'' + m.id + '\')" style="' + inputStyle + '">' +
+                    '<label style="font-size:13px; font-weight:600;">Total Biaya (Rp):</label><input type="number" id="edit-budget-' + m.id + '" value="' + (m.budgetTotal || 0) + '" oninput="updateMissionEditPreview(\'' + m.id + '\')" style="' + inputStyle + '">' +
+                    '<label style="font-size:13px; font-weight:600;">Status:</label><select id="edit-status-' + m.id + '" style="' + inputStyle + '"><option value="active"' + (m.status === 'active' ? ' selected' : '') + '>Aktif</option><option value="nonaktif"' + (m.status === 'nonaktif' ? ' selected' : '') + '>Nonaktif</option><option value="habis"' + (m.status === 'habis' ? ' selected' : '') + '>Habis</option></select>' +
+                    '<p id="edit-preview-' + m.id + '" style="font-size:13px; font-weight:600; color:#4b5563; margin:6px 0;"></p>' +
+                    '<button class="action-btn" onclick="saveMissionEdit(\'' + m.id + '\')">Simpan Atur Ulang</button> ' +
+                    '<button class="action-btn" style="background:#6b7280;" onclick="toggleMissionEdit(\'' + m.id + '\')">Batal</button>' +
+                    '</div></div>';
             });
+        }
+
+        function findAdminMission(id) {
+            return (adminMissionsCache || []).find(m => m.id === id) || null;
+        }
+
+        function toggleMissionEdit(id) {
+            const el = document.getElementById('mission-edit-' + id);
+            if (!el) return;
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') updateMissionEditPreview(id);
+        }
+
+        function updateMissionEditPreview(id) {
+            const el = document.getElementById('edit-preview-' + id);
+            const mission = findAdminMission(id);
+            if (!el || !mission) return;
+            const reward = parseInt((document.getElementById('edit-reward-' + id) || {}).value, 10) || 0;
+            const budget = parseInt((document.getElementById('edit-budget-' + id) || {}).value, 10) || 0;
+            const used = Math.max(0, (mission.clicksTotal || 0) - (mission.clicksLeft || 0));
+            const spent = used * (mission.reward || 0);
+            if (reward < 1 || budget < 1) { el.innerText = 'Klik sudah terpakai: ' + used + ' (sudah dibayar Rp ' + spent.toLocaleString('id-ID') + ').'; return; }
+            const fee = Math.floor(budget * 0.05);
+            const remainingNet = budget - fee - spent;
+            if (remainingNet < 0) { el.innerText = 'Total biaya baru terlalu kecil — reward yang sudah dibayarkan Rp ' + spent.toLocaleString('id-ID') + '.'; return; }
+            const remaining = Math.floor(remainingNet / reward);
+            el.innerText = 'Klik sudah terpakai: ' + used + ' (dibayar Rp ' + spent.toLocaleString('id-ID') + ') • Fee baru: Rp ' + fee.toLocaleString('id-ID') + ' • Sisa klik setelah disimpan: ' + remaining + ' klik';
+        }
+
+        async function saveMissionEdit(id) {
+            const title = document.getElementById('edit-title-' + id).value.trim();
+            const description = document.getElementById('edit-desc-' + id).value.trim();
+            const link = document.getElementById('edit-link-' + id).value.trim();
+            const reward = parseInt(document.getElementById('edit-reward-' + id).value, 10);
+            const budget = parseInt(document.getElementById('edit-budget-' + id).value, 10);
+            const status = document.getElementById('edit-status-' + id).value;
+            if (!title || !link || !reward || !budget) { alert('Nama, link, profit, dan total biaya wajib diisi!'); return; }
+            try {
+                const body = { action: 'updateMission', missionId: id, title, description, link, reward, budget, status };
+                const photoInput = document.getElementById('edit-photo-' + id);
+                if (photoInput && photoInput.files && photoInput.files.length > 0) {
+                    body.photoUrl = await compressImageFileAdmin(photoInput.files[0]);
+                }
+                const data = await api('/api/admin/settings', 'POST', body);
+                let msg = 'Misi diatur ulang. Sisa klik sekarang ' + data.mission.clicksLeft + ' dari total ' + data.mission.clicksTotal + '.';
+                if (data.fundingDelta > 0) msg += ' Saldo pembuat dipotong tambahan Rp ' + data.fundingDelta.toLocaleString('id-ID') + '.';
+                if (data.fundingDelta < 0) msg += ' Saldo pembuat dikembalikan Rp ' + Math.abs(data.fundingDelta).toLocaleString('id-ID') + '.';
+                alert(msg);
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal mengatur ulang misi.'); }
+        }
+
+        async function resetMissionClicks(id) {
+            const mission = findAdminMission(id);
+            if (!confirm('Reset slot klik misi "' + (mission ? mission.title : id) + '" ke penuh (' + (mission ? mission.clicksTotal : 0) + ' klik)? Riwayat pengiriman tidak dihapus — user yang sudah mengerjakan tetap tercatat selesai.')) return;
+            try {
+                const data = await api('/api/admin/settings', 'POST', { action: 'resetMission', missionId: id });
+                alert('Klik misi direset: ' + data.mission.clicksLeft + '/' + data.mission.clicksTotal + ', status ' + data.mission.status + '.');
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal mereset misi.'); }
+        }
+
+        async function deleteAdminMission(id) {
+            const mission = findAdminMission(id);
+            if (!confirm('Hapus misi "' + (mission ? mission.title : id) + '"? Misi hilang dari daftar user. Riwayat pengiriman tetap disimpan untuk audit. Sisa nilai klik misi user dikembalikan ke pembuatnya.')) return;
+            try {
+                const data = await api('/api/admin/settings', 'POST', { action: 'deleteMission', missionId: id });
+                alert('Misi dihapus.' + (data.refund > 0 ? ' Sisa Rp ' + data.refund.toLocaleString('id-ID') + ' dikembalikan ke ' + data.creator + '.' : ''));
+                await loadAdminData();
+            } catch (e) { alert(e.message || 'Gagal menghapus misi.'); }
         }
 
         function renderAdminSubmissions(subs) {

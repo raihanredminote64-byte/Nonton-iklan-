@@ -59,6 +59,89 @@ module.exports = async (req, res) => {
         return sendJson(res, 200, { mission: publicMission(mission), plan: input.plan });
       }
 
+      // Atur ulang misi manual: ubah isi/link/profit/total biaya/status.
+      // Klik yang sudah terpakai dihitung dari data lama; sisa klik dihitung ulang
+      // dari budget bersih baru dikurangi reward yang sudah dibayarkan. Selisih
+      // total biaya misi user dipotong dari / dikembalikan ke saldo pembuat.
+      if (body.action === 'updateMission') {
+        const missions = await getMissions();
+        const mission = missions.find((m) => m.id === body.missionId);
+        if (!mission) return sendJson(res, 404, { error: 'Misi tidak ditemukan.' });
+        const input = parseMissionInput(body);
+        if (input.error) return sendJson(res, 400, { error: input.error });
+
+        const usedClicks = Math.max(0, (mission.clicksTotal || 0) - (mission.clicksLeft || 0));
+        const spent = usedClicks * (mission.reward || 0);
+        const remainingNet = input.plan.net - spent;
+        if (remainingNet < 0) {
+          return sendJson(res, 400, { error: 'Total biaya baru terlalu kecil: reward yang sudah dibayarkan Rp ' + spent.toLocaleString('id-ID') + '.' });
+        }
+
+        const fundingDelta = input.budget - (mission.budgetTotal || 0);
+        let creator = null;
+        if (mission.creator !== 'ADMIN' && fundingDelta !== 0) {
+          creator = await getUser(mission.creator);
+          if (!creator) return sendJson(res, 400, { error: 'Akun pembuat misi tidak ditemukan.' });
+          if (fundingDelta > 0 && (creator.balance || 0) < fundingDelta) {
+            return sendJson(res, 400, { error: 'Saldo pembuat tidak cukup untuk menaikkan total biaya misi.' });
+          }
+          creator.balance = (creator.balance || 0) - fundingDelta;
+        }
+
+        const remainingClicks = Math.floor(remainingNet / input.reward);
+        mission.title = input.title;
+        mission.description = input.description;
+        if (Object.prototype.hasOwnProperty.call(body, 'photoUrl')) mission.photoUrl = input.photoUrl;
+        mission.link = input.link;
+        mission.reward = input.reward;
+        mission.budgetTotal = input.budget;
+        mission.fee = input.plan.fee;
+        mission.clicksTotal = usedClicks + remainingClicks;
+        mission.clicksLeft = remainingClicks;
+        if (['active', 'nonaktif', 'habis'].includes(body.status)) mission.status = body.status;
+        else if (mission.status === 'habis' && remainingClicks > 0) mission.status = 'active';
+        if (mission.status === 'active' && remainingClicks <= 0) mission.status = 'habis';
+        mission.updatedAt = Date.now();
+        if (creator) await saveUser(creator);
+        await saveMissions(missions);
+        return sendJson(res, 200, { mission: publicMission(mission), usedClicks, spent, fundingDelta });
+      }
+
+      // Reset slot klik misi ke penuh. Riwayat pengiriman tidak dihapus: user
+      // yang sudah mengerjakan tetap tercatat selesai dan tidak bisa mengulang.
+      if (body.action === 'resetMission') {
+        const missions = await getMissions();
+        const mission = missions.find((m) => m.id === body.missionId);
+        if (!mission) return sendJson(res, 404, { error: 'Misi tidak ditemukan.' });
+        mission.clicksLeft = mission.clicksTotal || 0;
+        mission.status = mission.clicksLeft > 0 ? 'active' : 'habis';
+        mission.updatedAt = Date.now();
+        await saveMissions(missions);
+        return sendJson(res, 200, { mission: publicMission(mission) });
+      }
+
+      // Hapus misi manual. Riwayat pengiriman dipertahankan untuk audit dan
+      // statistik member. Sisa nilai klik misi user dikembalikan ke pembuat
+      // (clicksLeft x reward; biaya platform 5% tidak dikembalikan).
+      if (body.action === 'deleteMission') {
+        const missions = await getMissions();
+        const idx = missions.findIndex((m) => m.id === body.missionId);
+        if (idx === -1) return sendJson(res, 404, { error: 'Misi tidak ditemukan.' });
+        const mission = missions[idx];
+        let refund = 0;
+        if (mission.creator !== 'ADMIN' && (mission.clicksLeft || 0) > 0) {
+          refund = (mission.clicksLeft || 0) * (mission.reward || 0);
+          const creator = await getUser(mission.creator);
+          if (creator && refund > 0) {
+            creator.balance = (creator.balance || 0) + refund;
+            await saveUser(creator);
+          }
+        }
+        missions.splice(idx, 1);
+        await saveMissions(missions);
+        return sendJson(res, 200, { ok: true, deletedMissionId: mission.id, refund, creator: mission.creator });
+      }
+
       // Gagalkan pengiriman misi manual yang curang: reward yang sudah dibayar
       // otomatis dipotong balik dari saldo user, slot klik dikembalikan.
       if (body.action === 'rejectSubmission') {
